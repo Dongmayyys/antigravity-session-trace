@@ -445,23 +445,36 @@ export class AntigravityClient {
     }
 
     /**
-     * Fetch workspace name for a single conversation via GetCascadeTrajectory.
+     * Fetch metadata details for a single conversation via GetCascadeTrajectory.
+     * Extracts workspace name and creation timestamp from trajectory metadata.
+     *
      * Used for deep enrichment when GetAllCascadeTrajectories didn't cover this conversation.
      *
-     * @returns workspace name, or null if no workspace / API failed
+     * @returns Object with workspace and createdAt, or null if API failed entirely
      */
-    async getConversationWorkspace(cascadeId: string): Promise<string | null> {
+    async getConversationDetails(cascadeId: string): Promise<{ workspace: string | null; createdAt: number | null } | null> {
         for (const conn of this.connections) {
             try {
                 const result = await apiRequest(
                     conn.port, conn.csrfToken,
                     'GetCascadeTrajectory', { cascadeId },
                 );
-                const workspaces = result.trajectory?.metadata?.workspaces;
-                if (workspaces?.length > 0) {
-                    return extractWorkspaceName(workspaces[0]);
+                const meta = result.trajectory?.metadata;
+
+                let workspace: string | null = null;
+                if (meta?.workspaces?.length > 0) {
+                    workspace = extractWorkspaceName(meta.workspaces[0]);
                 }
-                return null;
+
+                let createdAt: number | null = null;
+                if (meta?.createdAt) {
+                    const ts = new Date(meta.createdAt).getTime();
+                    if (!isNaN(ts)) {
+                        createdAt = ts;
+                    }
+                }
+
+                return { workspace, createdAt };
             } catch {
                 // Try next connection
             }

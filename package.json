@@ -28,7 +28,8 @@
             "antigravity-conv-manager": [
                 {
                     "id": "convManager.sessions",
-                    "name": "Sessions"
+                    "name": "Sessions",
+                    "type": "webview"
                 }
             ]
         },
@@ -58,18 +59,6 @@
                     "command": "convManager.refresh",
                     "when": "view == convManager.sessions",
                     "group": "navigation"
-                },
-                {
-                    "command": "convManager.search",
-                    "when": "view == convManager.sessions",
-                    "group": "navigation"
-                }
-            ],
-            "view/item/context": [
-                {
-                    "command": "convManager.openSession",
-                    "when": "view == convManager.sessions && viewItem == session",
-                    "group": "inline"
                 }
             ]
         }

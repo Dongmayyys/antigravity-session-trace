@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SessionTreeProvider } from './views/sessionTreeProvider';
+import { SidebarViewProvider } from './views/sidebarViewProvider';
 import { ContentPanel } from './views/contentPanel';
 import { scanBrainDirectory } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
@@ -13,53 +13,61 @@ const WORKSPACE_CACHE_KEY = 'workspaceCache';
 /**
  * Extension entry point.
  *
- * Initializes the session tree view, scans the local brain/ directory
+ * Initializes the sidebar webview, scans the local brain/ directory
  * for conversations, and registers commands.
  */
 export function activate(context: vscode.ExtensionContext) {
-    const treeProvider = new SessionTreeProvider();
+    const sidebarProvider = new SidebarViewProvider(context.extensionUri);
 
-    // Register the tree view in the Activity Bar
-    const treeView = vscode.window.createTreeView('convManager.sessions', {
-        treeDataProvider: treeProvider,
-        showCollapseAll: true,
-    });
-    context.subscriptions.push(treeView);
+    // Register the webview view provider for the sidebar
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+            SidebarViewProvider.viewId,
+            sidebarProvider,
+        ),
+    );
 
-    // Scan and populate tree view on activation
-    loadConversations(context, treeProvider);
+    // Wire up sidebar callbacks
+    sidebarProvider.onOpenSession = (conv) => {
+        ContentPanel.show(
+            conv.id,
+            conv.title || conv.id.substring(0, 8),
+            async (id: string): Promise<ConversationMessage[] | null> => {
+                if (!apiClient) {
+                    apiClient = new AntigravityClient();
+                    await apiClient.connect();
+                }
+                if (!apiClient.isConnected) {
+                    throw new Error('Cannot connect to Antigravity API.\n\nMake sure Antigravity is running.');
+                }
+                return apiClient.getConversation(id);
+            },
+        );
+    };
+
+    sidebarProvider.onRefresh = () => {
+        apiClient?.disconnect();
+        apiClient = undefined;
+        loadConversations(context, sidebarProvider);
+    };
+
+    // Scan and populate on activation
+    loadConversations(context, sidebarProvider);
 
     // Commands
     context.subscriptions.push(
         vscode.commands.registerCommand('convManager.refresh', () => {
-            // Force re-detect processes on manual refresh
             apiClient?.disconnect();
             apiClient = undefined;
-            loadConversations(context, treeProvider);
+            loadConversations(context, sidebarProvider);
         }),
-        vscode.commands.registerCommand('convManager.openSession', (item) => {
-            const conv = item.conversation;
-            if (!conv) { return; }
-
-            ContentPanel.show(
-                conv.id,
-                conv.title || conv.id.substring(0, 8),
-                async (id: string): Promise<ConversationMessage[] | null> => {
-                    // Lazily connect API client if needed
-                    if (!apiClient) {
-                        apiClient = new AntigravityClient();
-                        await apiClient.connect();
-                    }
-                    if (!apiClient.isConnected) {
-                        throw new Error('Cannot connect to Antigravity API.\n\nMake sure Antigravity is running.');
-                    }
-                    return apiClient.getConversation(id);
-                },
-            );
+        vscode.commands.registerCommand('convManager.openSession', () => {
+            // Triggered by webview postMessage, handled via callback above
         }),
         vscode.commands.registerCommand('convManager.search', () => {
-            // TODO: implement search via Quick Pick
-            vscode.window.showInformationMessage('Search not yet implemented');
+            // Search is now built into the sidebar webview
+            // Focus the sidebar view to reveal the search box
+            vscode.commands.executeCommand('convManager.sessions.focus');
         }),
     );
 }
@@ -75,7 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
  */
 async function loadConversations(
     context: vscode.ExtensionContext,
-    treeProvider: SessionTreeProvider,
+    sidebarProvider: SidebarViewProvider,
 ): Promise<void> {
     // Load persistent workspace cache
     const cache: Record<string, string | null> = context.globalState.get(WORKSPACE_CACHE_KEY, {});
@@ -92,7 +100,7 @@ async function loadConversations(
                 conv.workspace = cached;
             }
         }
-        treeProvider.setConversations(conversations);
+        sidebarProvider.setConversations(conversations);
 
         // Phase 2: API metadata enrichment (limited coverage ~20%)
         try {
@@ -117,13 +125,13 @@ async function loadConversations(
                             if (meta.branch) { conv.branch = meta.branch; }
                         }
                     }
-                    treeProvider.setConversations(conversations);
+                    sidebarProvider.setConversations(conversations);
                 }
 
-                // Phase 3: Deep workspace enrichment via GetCascadeTrajectory
-                // Only fetch conversations not in cache and still missing workspace
+                // Phase 3: Deep enrichment via GetCascadeTrajectory
+                // Fetch conversations missing workspace (and not in cache) or missing createdAt
                 const needsEnrichment = conversations.filter(
-                    c => !c.workspace && !(c.id in cache),
+                    c => (!c.workspace && !(c.id in cache)) || !c.createdAt,
                 );
 
                 if (needsEnrichment.length > 0) {
@@ -131,22 +139,28 @@ async function loadConversations(
                     for (let i = 0; i < needsEnrichment.length; i += BATCH_SIZE) {
                         const batch = needsEnrichment.slice(i, i + BATCH_SIZE);
                         const results = await Promise.allSettled(
-                            batch.map(c => apiClient!.getConversationWorkspace(c.id)),
+                            batch.map(c => apiClient!.getConversationDetails(c.id)),
                         );
 
                         let changed = false;
                         for (let j = 0; j < batch.length; j++) {
                             const r = results[j];
                             if (r.status === 'fulfilled' && r.value) {
-                                cache[batch[j].id] = r.value;
-                                cacheUpdated = true;
-                                batch[j].workspace = r.value;
-                                changed = true;
+                                if (r.value.workspace) {
+                                    cache[batch[j].id] = r.value.workspace;
+                                    cacheUpdated = true;
+                                    batch[j].workspace = r.value.workspace;
+                                    changed = true;
+                                }
+                                if (r.value.createdAt) {
+                                    batch[j].createdAt = r.value.createdAt;
+                                    changed = true;
+                                }
                             }
                         }
 
                         if (changed) {
-                            treeProvider.setConversations(conversations);
+                            sidebarProvider.setConversations(conversations);
                         }
                     }
                 }
