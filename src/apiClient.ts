@@ -298,6 +298,26 @@ export function extractMessages(steps: any[]): ConversationMessage[] {
     return messages;
 }
 
+/**
+ * Extract a workspace name from an API workspace object.
+ *
+ * Tries workspaceFolderAbsoluteUri first (extracts last path segment),
+ * falls back to workspaceName or name properties.
+ */
+function extractWorkspaceName(ws: any): string | null {
+    if (ws.workspaceFolderAbsoluteUri) {
+        try {
+            const decoded = decodeURIComponent(ws.workspaceFolderAbsoluteUri);
+            const cleaned = decoded.replace(/^file:\/\/\//, '');
+            const segments = cleaned.replace(/\\/g, '/').split('/').filter(Boolean);
+            return segments[segments.length - 1] || null;
+        } catch {
+            // fall through
+        }
+    }
+    return ws.workspaceName || ws.name || null;
+}
+
 // ====================== Public API ======================
 
 /**
@@ -405,17 +425,7 @@ export class AntigravityClient {
                     if (item.workspaces?.length > 0) {
                         const ws = item.workspaces[0];
                         branch = ws.branchName || null;
-
-                        if (ws.workspaceFolderAbsoluteUri) {
-                            try {
-                                const decoded = decodeURIComponent(ws.workspaceFolderAbsoluteUri);
-                                const cleaned = decoded.replace(/^file:\/\/\//, '');
-                                const segments = cleaned.replace(/\\/g, '/').split('/').filter(Boolean);
-                                workspace = segments[segments.length - 1] || null;
-                            } catch {
-                                workspace = ws.workspaceName || ws.name || null;
-                            }
-                        }
+                        workspace = extractWorkspaceName(ws);
                     }
 
                     metadata.set(id, {
@@ -432,6 +442,31 @@ export class AntigravityClient {
         }
 
         return metadata;
+    }
+
+    /**
+     * Fetch workspace name for a single conversation via GetCascadeTrajectory.
+     * Used for deep enrichment when GetAllCascadeTrajectories didn't cover this conversation.
+     *
+     * @returns workspace name, or null if no workspace / API failed
+     */
+    async getConversationWorkspace(cascadeId: string): Promise<string | null> {
+        for (const conn of this.connections) {
+            try {
+                const result = await apiRequest(
+                    conn.port, conn.csrfToken,
+                    'GetCascadeTrajectory', { cascadeId },
+                );
+                const workspaces = result.trajectory?.metadata?.workspaces;
+                if (workspaces?.length > 0) {
+                    return extractWorkspaceName(workspaces[0]);
+                }
+                return null;
+            } catch {
+                // Try next connection
+            }
+        }
+        return null;
     }
 
     /** Reset all connections. */

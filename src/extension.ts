@@ -7,6 +7,9 @@ import { AntigravityClient, ConversationMessage } from './apiClient';
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
 
+/** globalState key for persisted workspace cache */
+const WORKSPACE_CACHE_KEY = 'workspaceCache';
+
 /**
  * Extension entry point.
  *
@@ -24,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(treeView);
 
     // Scan and populate tree view on activation
-    loadConversations(treeProvider);
+    loadConversations(context, treeProvider);
 
     // Commands
     context.subscriptions.push(
@@ -32,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
             // Force re-detect processes on manual refresh
             apiClient?.disconnect();
             apiClient = undefined;
-            loadConversations(treeProvider);
+            loadConversations(context, treeProvider);
         }),
         vscode.commands.registerCommand('convManager.openSession', (item) => {
             const conv = item.conversation;
@@ -62,16 +65,36 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 /**
- * Scan brain/ directory and update the tree view with results.
- * Then attempt to connect to the API for metadata enrichment (workspace, better titles).
+ * Scan brain/ directory and enrich with API metadata.
+ *
+ * Three-phase loading strategy:
+ *   Phase 1: Local brain/ scan + apply cached workspace mappings (instant)
+ *   Phase 2: GetAllCascadeTrajectories — batch metadata (~20% workspace coverage)
+ *   Phase 3: GetCascadeTrajectory per conversation — deep workspace enrichment
+ *            (batch parallel, progressive tree updates, results cached to globalState)
  */
-async function loadConversations(treeProvider: SessionTreeProvider): Promise<void> {
+async function loadConversations(
+    context: vscode.ExtensionContext,
+    treeProvider: SessionTreeProvider,
+): Promise<void> {
+    // Load persistent workspace cache
+    const cache: Record<string, string | null> = context.globalState.get(WORKSPACE_CACHE_KEY, {});
+    let cacheUpdated = false;
+
     try {
         // Phase 1: Local scan (instant, works offline)
         const conversations = await scanBrainDirectory();
+
+        // Apply cached workspace data for instant grouping
+        for (const conv of conversations) {
+            const cached = cache[conv.id];
+            if (cached) {
+                conv.workspace = cached;
+            }
+        }
         treeProvider.setConversations(conversations);
 
-        // Phase 2: API metadata enrichment (async, non-blocking)
+        // Phase 2: API metadata enrichment (limited coverage ~20%)
         try {
             if (!apiClient) {
                 apiClient = new AntigravityClient();
@@ -82,25 +105,63 @@ async function loadConversations(treeProvider: SessionTreeProvider): Promise<voi
                 const metadata = await apiClient.getConversationList();
 
                 if (metadata.size > 0) {
-                    // Merge API metadata into local data
                     for (const conv of conversations) {
                         const meta = metadata.get(conv.id);
                         if (meta) {
                             if (meta.title) { conv.title = meta.title; }
-                            if (meta.workspace) { conv.workspace = meta.workspace; }
+                            if (meta.workspace) {
+                                conv.workspace = meta.workspace;
+                                cache[conv.id] = meta.workspace;
+                                cacheUpdated = true;
+                            }
                             if (meta.branch) { conv.branch = meta.branch; }
                         }
                     }
-                    // Re-render with enriched data
                     treeProvider.setConversations(conversations);
+                }
+
+                // Phase 3: Deep workspace enrichment via GetCascadeTrajectory
+                // Only fetch conversations not in cache and still missing workspace
+                const needsEnrichment = conversations.filter(
+                    c => !c.workspace && !(c.id in cache),
+                );
+
+                if (needsEnrichment.length > 0) {
+                    const BATCH_SIZE = 5;
+                    for (let i = 0; i < needsEnrichment.length; i += BATCH_SIZE) {
+                        const batch = needsEnrichment.slice(i, i + BATCH_SIZE);
+                        const results = await Promise.allSettled(
+                            batch.map(c => apiClient!.getConversationWorkspace(c.id)),
+                        );
+
+                        let changed = false;
+                        for (let j = 0; j < batch.length; j++) {
+                            const r = results[j];
+                            if (r.status === 'fulfilled' && r.value) {
+                                cache[batch[j].id] = r.value;
+                                cacheUpdated = true;
+                                batch[j].workspace = r.value;
+                                changed = true;
+                            }
+                        }
+
+                        if (changed) {
+                            treeProvider.setConversations(conversations);
+                        }
+                    }
                 }
             }
         } catch {
-            // API unavailable — local data is still shown, just without workspace grouping
+            // API unavailable — local data + cache still shown
         }
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         vscode.window.showErrorMessage(`Failed to scan conversations: ${msg}`);
+    }
+
+    // Persist cache updates
+    if (cacheUpdated) {
+        context.globalState.update(WORKSPACE_CACHE_KEY, cache);
     }
 }
 
