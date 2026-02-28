@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { SessionTreeProvider } from './views/sessionTreeProvider';
+import { ContentPanel } from './views/contentPanel';
 import { scanBrainDirectory } from './brainScanner';
-import { AntigravityClient } from './apiClient';
+import { AntigravityClient, ConversationMessage } from './apiClient';
 
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
@@ -34,8 +35,24 @@ export function activate(context: vscode.ExtensionContext) {
             loadConversations(treeProvider);
         }),
         vscode.commands.registerCommand('convManager.openSession', (item) => {
-            // TODO: open content panel webview for selected session
-            vscode.window.showInformationMessage(`Open: ${item.label}`);
+            const conv = item.conversation;
+            if (!conv) { return; }
+
+            ContentPanel.show(
+                conv.id,
+                conv.title || conv.id.substring(0, 8),
+                async (id: string): Promise<ConversationMessage[] | null> => {
+                    // Lazily connect API client if needed
+                    if (!apiClient) {
+                        apiClient = new AntigravityClient();
+                        await apiClient.connect();
+                    }
+                    if (!apiClient.isConnected) {
+                        throw new Error('Cannot connect to Antigravity API.\n\nMake sure Antigravity is running.');
+                    }
+                    return apiClient.getConversation(id);
+                },
+            );
         }),
         vscode.commands.registerCommand('convManager.search', () => {
             // TODO: implement search via Quick Pick
