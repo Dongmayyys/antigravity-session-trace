@@ -1,0 +1,90 @@
+{
+    "name": "antigravity-conv-manager",
+    "displayName": "Antigravity Conversation Manager",
+    "description": "Browse, search, tag, and manage your Antigravity conversations.",
+    "version": "0.1.0",
+    "publisher": "TODO",
+    "engines": {
+        "vscode": "^1.96.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "antigravity-conv-manager",
+                    "title": "Conversations",
+                    "icon": "$(comment-discussion)"
+                }
+            ]
+        },
+        "views": {
+            "antigravity-conv-manager": [
+                {
+                    "id": "convManager.sessions",
+                    "name": "Sessions"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "convManager.refresh",
+                "title": "Refresh Sessions",
+                "icon": "$(refresh)",
+                "category": "Conversations"
+            },
+            {
+                "command": "convManager.openSession",
+                "title": "Open Session",
+                "icon": "$(open-preview)",
+                "category": "Conversations"
+            },
+            {
+                "command": "convManager.search",
+                "title": "Search Conversations",
+                "icon": "$(search)",
+                "category": "Conversations"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "convManager.refresh",
+                    "when": "view == convManager.sessions",
+                    "group": "navigation"
+                },
+                {
+                    "command": "convManager.search",
+                    "when": "view == convManager.sessions",
+                    "group": "navigation"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "convManager.openSession",
+                    "when": "view == convManager.sessions && viewItem == session",
+                    "group": "inline"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "compile": "node esbuild.js",
+        "compile:production": "node esbuild.js --production",
+        "watch": "node esbuild.js --watch",
+        "package": "node esbuild.js --production && npx @vscode/vsce package --no-dependencies",
+        "lint": "eslint src"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/vscode": "^1.96.0",
+        "esbuild": "^0.27.2",
+        "typescript": "^5.3.0"
+    }
+}
