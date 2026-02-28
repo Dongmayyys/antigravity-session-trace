@@ -29,4 +29,5 @@ coverage/
 
 # Private / AI assistant notes
 .agent/
+_reference/
 TODO.md
