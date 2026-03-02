@@ -8,9 +8,10 @@ import { ConversationInfo } from './types';
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
 
-/** globalState key for persisted workspace cache */
+/** globalState keys for persisted caches */
 const WORKSPACE_CACHE_KEY = 'workspaceCache';
 const TITLE_CACHE_KEY = 'titleCache';
+const MSG_COUNT_CACHE_KEY = 'messageCountCache';
 
 /**
  * Extension entry point.
@@ -186,8 +187,10 @@ async function loadConversations(
     // Load persistent caches
     const cache: Record<string, string | null> = context.globalState.get(WORKSPACE_CACHE_KEY, {});
     const titleCache: Record<string, string> = context.globalState.get(TITLE_CACHE_KEY, {});
+    const msgCountCache: Record<string, number> = context.globalState.get(MSG_COUNT_CACHE_KEY, {});
     let cacheUpdated = false;
     let titleCacheUpdated = false;
+    let msgCountCacheUpdated = false;
 
     try {
         // Phase 1: Local scan (instant, works offline)
@@ -200,6 +203,9 @@ async function loadConversations(
             }
             if (titleCache[conv.id]) {
                 conv.title = titleCache[conv.id];
+            }
+            if (msgCountCache[conv.id] !== undefined) {
+                conv.messageCount = msgCountCache[conv.id];
             }
         }
         treeProvider.setConversations(conversations);
@@ -236,9 +242,11 @@ async function loadConversations(
                 }
 
                 // Phase 3: Deep enrichment via GetCascadeTrajectory
-                // Fetch conversations missing workspace (and not in cache) or missing createdAt
+                // Fetch conversations missing workspace, createdAt, or messageCount
                 const needsEnrichment = conversations.filter(
-                    c => (!c.workspace && !(c.id in cache)) || !c.createdAt,
+                    c => (!c.workspace && !(c.id in cache))
+                        || !c.createdAt
+                        || c.messageCount === undefined,
                 );
 
                 if (needsEnrichment.length > 0) {
@@ -261,6 +269,12 @@ async function loadConversations(
                                 }
                                 if (r.value.createdAt) {
                                     batch[j].createdAt = r.value.createdAt;
+                                    changed = true;
+                                }
+                                if (r.value.messageCount > 0) {
+                                    batch[j].messageCount = r.value.messageCount;
+                                    msgCountCache[batch[j].id] = r.value.messageCount;
+                                    msgCountCacheUpdated = true;
                                     changed = true;
                                 }
                             }
@@ -286,6 +300,9 @@ async function loadConversations(
     }
     if (titleCacheUpdated) {
         context.globalState.update(TITLE_CACHE_KEY, titleCache);
+    }
+    if (msgCountCacheUpdated) {
+        context.globalState.update(MSG_COUNT_CACHE_KEY, msgCountCache);
     }
 }
 

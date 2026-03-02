@@ -446,13 +446,17 @@ export class AntigravityClient {
 
     /**
      * Fetch metadata details for a single conversation via GetCascadeTrajectory.
-     * Extracts workspace name and creation timestamp from trajectory metadata.
+     * Extracts workspace name, creation timestamp, and message count from trajectory.
      *
      * Used for deep enrichment when GetAllCascadeTrajectories didn't cover this conversation.
      *
-     * @returns Object with workspace and createdAt, or null if API failed entirely
+     * @returns Object with workspace, createdAt, and messageCount, or null if API failed entirely
      */
-    async getConversationDetails(cascadeId: string): Promise<{ workspace: string | null; createdAt: number | null } | null> {
+    async getConversationDetails(cascadeId: string): Promise<{
+        workspace: string | null;
+        createdAt: number | null;
+        messageCount: number;
+    } | null> {
         for (const conn of this.connections) {
             try {
                 const result = await apiRequest(
@@ -474,7 +478,11 @@ export class AntigravityClient {
                     }
                 }
 
-                return { workspace, createdAt };
+                // Count messages from steps (zero extra cost — data already in response)
+                const steps = result.trajectory?.steps || [];
+                const messageCount = extractMessages(steps).length;
+
+                return { workspace, createdAt, messageCount };
             } catch {
                 // Try next connection
             }

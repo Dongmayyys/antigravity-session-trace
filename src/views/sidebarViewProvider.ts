@@ -232,10 +232,10 @@ export class SessionItem extends vscode.TreeItem {
         // Icon color coding by message count
         if (turns !== undefined && turns > 0) {
             this.iconPath = new vscode.ThemeIcon(
-                turns > 10 ? 'comment-unresolved' : 'comment',
-                turns > 20
+                turns > 100 ? 'comment-unresolved' : 'comment',
+                turns > 100
                     ? new vscode.ThemeColor('charts.red')
-                    : turns > 5
+                    : turns > 60
                         ? new vscode.ThemeColor('charts.yellow')
                         : undefined,
             );
