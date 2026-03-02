@@ -47,19 +47,19 @@
             },
             {
                 "command": "convManager.search",
-                "title": "Search Conversations\u2026",
+                "title": "Search Conversations…",
                 "icon": "$(search)",
                 "category": "Conversations"
             },
             {
                 "command": "convManager.sortBy",
-                "title": "Sort By\u2026",
+                "title": "Sort By…",
                 "icon": "$(list-ordered)",
                 "category": "Conversations"
             },
             {
                 "command": "convManager.filterWorkspace",
-                "title": "Filter by Workspace\u2026",
+                "title": "Filter by Workspace…",
                 "icon": "$(filter)",
                 "category": "Conversations"
             }
@@ -108,5 +108,8 @@
         "@types/vscode": "^1.96.0",
         "esbuild": "^0.27.2",
         "typescript": "^5.3.0"
+    },
+    "dependencies": {
+        "marked": "^17.0.3"
     }
 }

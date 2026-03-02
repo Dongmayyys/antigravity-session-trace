@@ -12,6 +12,9 @@ const buildOptions = {
     platform: 'node',
     sourcemap: !production,
     minify: production,
+    loader: {
+        '.css': 'text',  // Import .css files as plain text strings (for inline injection into Webview)
+    },
 };
 
 if (watch) {
