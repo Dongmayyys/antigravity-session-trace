@@ -29,14 +29,14 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(treeView);
 
     // Scan and populate on activation
-    loadConversations(context, treeProvider);
+    loadConversations(context, treeProvider, treeView);
 
     // Commands
     context.subscriptions.push(
         vscode.commands.registerCommand('convManager.refresh', () => {
             apiClient?.disconnect();
             apiClient = undefined;
-            loadConversations(context, treeProvider);
+            loadConversations(context, treeProvider, treeView);
         }),
 
         vscode.commands.registerCommand('convManager.openSession', (session?: ConversationInfo) => {
@@ -141,6 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
 async function loadConversations(
     context: vscode.ExtensionContext,
     treeProvider: SessionTreeProvider,
+    treeView: vscode.TreeView<any>,
 ): Promise<void> {
     // Load persistent caches
     const cache: Record<string, string | null> = context.globalState.get(WORKSPACE_CACHE_KEY, {});
@@ -162,6 +163,7 @@ async function loadConversations(
             }
         }
         treeProvider.setConversations(conversations);
+        treeView.badge = { value: conversations.length, tooltip: `${conversations.length} conversations` };
 
         // Phase 2: API metadata enrichment (limited coverage ~20%)
         try {
