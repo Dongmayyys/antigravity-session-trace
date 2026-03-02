@@ -10,6 +10,7 @@ let apiClient: AntigravityClient | undefined;
 
 /** globalState key for persisted workspace cache */
 const WORKSPACE_CACHE_KEY = 'workspaceCache';
+const TITLE_CACHE_KEY = 'titleCache';
 
 /**
  * Extension entry point.
@@ -141,19 +142,23 @@ async function loadConversations(
     context: vscode.ExtensionContext,
     treeProvider: SessionTreeProvider,
 ): Promise<void> {
-    // Load persistent workspace cache
+    // Load persistent caches
     const cache: Record<string, string | null> = context.globalState.get(WORKSPACE_CACHE_KEY, {});
+    const titleCache: Record<string, string> = context.globalState.get(TITLE_CACHE_KEY, {});
     let cacheUpdated = false;
+    let titleCacheUpdated = false;
 
     try {
         // Phase 1: Local scan (instant, works offline)
         const conversations = await scanBrainDirectory();
 
-        // Apply cached workspace data for instant grouping
+        // Apply cached data for instant display
         for (const conv of conversations) {
-            const cached = cache[conv.id];
-            if (cached) {
-                conv.workspace = cached;
+            if (cache[conv.id]) {
+                conv.workspace = cache[conv.id]!;
+            }
+            if (titleCache[conv.id]) {
+                conv.title = titleCache[conv.id];
             }
         }
         treeProvider.setConversations(conversations);
@@ -172,7 +177,11 @@ async function loadConversations(
                     for (const conv of conversations) {
                         const meta = metadata.get(conv.id);
                         if (meta) {
-                            if (meta.title) { conv.title = meta.title; }
+                            if (meta.title) {
+                                conv.title = meta.title;
+                                titleCache[conv.id] = meta.title;
+                                titleCacheUpdated = true;
+                            }
                             if (meta.workspace) {
                                 conv.workspace = meta.workspace;
                                 cache[conv.id] = meta.workspace;
@@ -232,6 +241,9 @@ async function loadConversations(
     // Persist cache updates
     if (cacheUpdated) {
         context.globalState.update(WORKSPACE_CACHE_KEY, cache);
+    }
+    if (titleCacheUpdated) {
+        context.globalState.update(TITLE_CACHE_KEY, titleCache);
     }
 }
 
