@@ -28,8 +28,7 @@
             "antigravity-conv-manager": [
                 {
                     "id": "convManager.sessions",
-                    "name": "Sessions",
-                    "type": "webview"
+                    "name": "Sessions"
                 }
             ]
         },
@@ -48,17 +47,51 @@
             },
             {
                 "command": "convManager.search",
-                "title": "Search Conversations",
+                "title": "Search Conversations\u2026",
                 "icon": "$(search)",
+                "category": "Conversations"
+            },
+            {
+                "command": "convManager.sortBy",
+                "title": "Sort By\u2026",
+                "icon": "$(list-ordered)",
+                "category": "Conversations"
+            },
+            {
+                "command": "convManager.filterWorkspace",
+                "title": "Filter by Workspace\u2026",
+                "icon": "$(filter)",
                 "category": "Conversations"
             }
         ],
         "menus": {
             "view/title": [
                 {
+                    "command": "convManager.search",
+                    "when": "view == convManager.sessions",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "convManager.filterWorkspace",
+                    "when": "view == convManager.sessions",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "convManager.sortBy",
+                    "when": "view == convManager.sessions",
+                    "group": "navigation@3"
+                },
+                {
                     "command": "convManager.refresh",
                     "when": "view == convManager.sessions",
-                    "group": "navigation"
+                    "group": "navigation@4"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "convManager.openSession",
+                    "when": "view == convManager.sessions && viewItem == session",
+                    "group": "inline"
                 }
             ]
         }
