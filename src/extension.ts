@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SessionTreeProvider, SortBy } from './views/sidebarViewProvider';
+import { SessionTreeProvider, SortBy, relativeTime } from './views/sidebarViewProvider';
 import { ContentPanel } from './views/contentPanel';
 import { scanBrainDirectory } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
@@ -57,16 +57,56 @@ export function activate(context: vscode.ExtensionContext) {
             );
         }),
 
-        vscode.commands.registerCommand('convManager.search', async () => {
-            const query = await vscode.window.showInputBox({
-                prompt: 'Search conversations by title, workspace, or ID',
-                value: treeProvider.searchQuery,
-                placeHolder: 'Type to filter…',
-            });
-            // undefined = cancelled, empty string = clear search
-            if (query !== undefined) {
-                treeProvider.setSearch(query);
+        vscode.commands.registerCommand('convManager.search', () => {
+            const conversations = treeProvider.conversations;
+            if (conversations.length === 0) {
+                vscode.window.showInformationMessage('No conversations loaded yet.');
+                return;
             }
+
+            interface SearchItem extends vscode.QuickPickItem {
+                session: ConversationInfo;
+            }
+
+            const quickPick = vscode.window.createQuickPick<SearchItem>();
+            quickPick.placeholder = 'Search conversations by title or workspace…';
+            quickPick.matchOnDescription = true;
+
+            // Build items from all conversations (sorted by lastModified)
+            const sorted = [...conversations].sort((a, b) => b.lastModified - a.lastModified);
+            quickPick.items = sorted.map(c => {
+                const title = c.title || c.id.substring(0, 8);
+                const timeAgo = relativeTime(c.lastModified);
+
+                // description: only workspace (matched by Quick Pick)
+                const description = c.workspace ? `$(folder) ${c.workspace}` : '';
+
+                // detail: time + message count (visible but not matched)
+                const infoParts: string[] = [];
+                if (c.messageCount) { infoParts.push(`${c.messageCount} msgs`); }
+                infoParts.push(timeAgo);
+                const detail = infoParts.join(' · ');
+
+                return {
+                    label: `$(comment) ${title}`,
+                    description,
+                    detail,
+                    session: c,
+                };
+            });
+
+            quickPick.onDidAccept(() => {
+                const selected = quickPick.selectedItems[0];
+                if (selected) {
+                    quickPick.dispose();
+                    // Clear tree search filter and open the selected conversation
+                    treeProvider.setSearch('');
+                    vscode.commands.executeCommand('convManager.openSession', selected.session);
+                }
+            });
+
+            quickPick.onDidHide(() => quickPick.dispose());
+            quickPick.show();
         }),
 
         vscode.commands.registerCommand('convManager.sortBy', async () => {

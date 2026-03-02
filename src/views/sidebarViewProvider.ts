@@ -30,6 +30,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     get sortBy(): SortBy { return this._sortBy; }
     get filterWorkspace(): string | null { return this._filterWorkspace; }
     get searchQuery(): string { return this._searchQuery; }
+    get conversations(): readonly ConversationInfo[] { return this._conversations; }
 
     /**
      * Replace the conversation list and refresh the tree.
@@ -168,7 +169,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
 // ====================== Helpers ======================
 
-function relativeTime(ts: number): string {
+export function relativeTime(ts: number): string {
     const diff = Date.now() - ts;
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) { return 'just now'; }
