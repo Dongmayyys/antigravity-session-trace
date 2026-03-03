@@ -39,9 +39,12 @@ export function activate(context: vscode.ExtensionContext) {
         treeProvider.setSortBy(savedSort);
     }
 
-    // Load summarized IDs from globalState for ✨ badges
-    const summaryCache: Record<string, unknown> = context.globalState.get('summaryCache', {});
+    // Load summarized IDs and texts from globalState for ✨ badges + tooltip preview
+    const summaryCache: Record<string, { text: string; generatedAt: string }> = context.globalState.get('summaryCache', {});
     treeProvider.summarizedIds = new Set(Object.keys(summaryCache));
+    treeProvider.summaryTexts = new Map(
+        Object.entries(summaryCache).map(([id, entry]) => [id, entry.text]),
+    );
 
     // Register native Tree View for the sidebar
     const treeView = vscode.window.createTreeView('convManager.sessions', {
@@ -261,8 +264,9 @@ export function activate(context: vscode.ExtensionContext) {
                     const entry = { text: summaryText, generatedAt: new Date().toISOString() };
                     setSummary(context.globalState, session.id, entry);
 
-                    // Step 4: Update tree badge
+                    // Step 4: Update tree badge + tooltip preview
                     treeProvider.summarizedIds.add(session.id);
+                    treeProvider.summaryTexts.set(session.id, summaryText);
                     treeProvider.refresh();
 
                     // Step 5: Show in panel
@@ -677,6 +681,7 @@ async function tryAutoSummarize(
                 setSummary(context.globalState, conv.id, entry);
 
                 treeProvider.summarizedIds.add(conv.id);
+                treeProvider.summaryTexts.set(conv.id, summaryText);
                 success++;
 
                 // Inter-request delay (2s) to avoid rate limiting

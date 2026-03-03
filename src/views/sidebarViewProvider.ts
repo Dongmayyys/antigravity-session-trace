@@ -30,6 +30,9 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     /** IDs of conversations that have AI summaries (set by extension.ts). */
     summarizedIds: Set<string> = new Set();
 
+    /** Summary texts keyed by conversation ID (set by extension.ts for tooltip preview). */
+    summaryTexts: Map<string, string> = new Map();
+
     get sortBy(): SortBy { return this._sortBy; }
     get filterWorkspace(): string | null { return this._filterWorkspace; }
     get searchQuery(): string { return this._searchQuery; }
@@ -81,7 +84,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             return this._getRootChildren();
         }
         if (element instanceof CategoryItem) {
-            return element.sessions.map(s => new SessionItem(s, this.summarizedIds));
+            return element.sessions.map(s => new SessionItem(s, this.summarizedIds, this.summaryTexts));
         }
         return [];
     }
@@ -125,7 +128,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
         // When filtering to a single workspace, flatten (no grouping)
         if (this._filterWorkspace !== null) {
-            return sorted.map(s => new SessionItem(s, this.summarizedIds));
+            return sorted.map(s => new SessionItem(s, this.summarizedIds, this.summaryTexts));
         }
 
         // Group by workspace
@@ -214,6 +217,7 @@ export class SessionItem extends vscode.TreeItem {
     constructor(
         public readonly session: ConversationInfo,
         summarizedIds?: Set<string>,
+        summaryTexts?: Map<string, string>,
     ) {
         const label = session.title || session.id.substring(0, 8);
         super(label, vscode.TreeItemCollapsibleState.None);
@@ -245,16 +249,29 @@ export class SessionItem extends vscode.TreeItem {
             this.description = (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
 
             // Markdown tooltip with metadata
-            this.tooltip = new vscode.MarkdownString([
-                `**${label}**`,
-                '',
-                `- **Workspace**: ${session.workspace || '(none)'}`,
-                `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
-                session.createdAt ? `- **Created**: ${new Date(session.createdAt).toLocaleString()}` : '',
-                turns !== undefined ? `- **Messages**: ${turns}` : '',
-                hasSummary ? `- **AI Summary**: ✅ 已总结` : '',
-                `- **ID**: \`${session.id}\``,
-            ].filter(Boolean).join('\n'));
+            // Tooltip: summary-only when available, metadata fallback otherwise
+            const summaryText = summaryTexts?.get(session.id);
+            if (summaryText) {
+                const metaParts: string[] = [`**${label}**`];
+                if (session.workspace) { metaParts.push(`📁 ${session.workspace}`); }
+                if (turns) { metaParts.push(`💬 ${turns}`); }
+                metaParts.push(rel);
+                const metaLine = metaParts.join(' · ');
+                const preview = summaryText.length > 800
+                    ? summaryText.substring(0, 800) + '…'
+                    : summaryText;
+                this.tooltip = new vscode.MarkdownString(`${metaLine}\n\n---\n\n${preview}`);
+            } else {
+                this.tooltip = new vscode.MarkdownString([
+                    `**${label}**`,
+                    '',
+                    `- **Workspace**: ${session.workspace || '(none)'}`,
+                    `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
+                    session.createdAt ? `- **Created**: ${new Date(session.createdAt).toLocaleString()}` : '',
+                    turns !== undefined ? `- **Messages**: ${turns}` : '',
+                    `- **ID**: \`${session.id}\``,
+                ].filter(Boolean).join('\n'));
+            }
 
             // Icon color coding by message count
             if (turns !== undefined && turns > 0) {
