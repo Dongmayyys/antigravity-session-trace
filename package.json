@@ -116,16 +116,13 @@
             "title": "Conversation Manager — AI",
             "properties": {
                 "convManager.ai.endpoint": {
+                    "order": 1,
                     "type": "string",
                     "default": "",
                     "markdownDescription": "AI API base URL (e.g. `https://api.openai.com/v1` or `https://generativelanguage.googleapis.com/v1beta`)\n\n> 🔐 **API Key** 通过 OS 级安全存储保存，请通过命令面板设置：`Ctrl+Shift+P` → `Conversations: Set AI API Key`"
                 },
-                "convManager.ai.model": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Model name (e.g. gpt-4o, gemini-2.0-flash)"
-                },
                 "convManager.ai.format": {
+                    "order": 2,
                     "type": "string",
                     "enum": [
                         "openai",
@@ -134,11 +131,41 @@
                     "default": "openai",
                     "description": "API format: openai (chat/completions + Bearer) or gemini (generateContent + ?key=)"
                 },
+                "convManager.ai.model": {
+                    "order": 3,
+                    "type": "string",
+                    "default": "",
+                    "description": "Model name (e.g. gpt-4o, gemini-2.0-flash)"
+                },
                 "convManager.ai.prompt": {
+                    "order": 4,
                     "type": "string",
                     "default": "",
                     "markdownDescription": "System prompt for AI summarization. Leave empty to use the built-in default.",
                     "editPresentation": "multilineText"
+                },
+                "convManager.ai.autoSummarize": {
+                    "order": 5,
+                    "type": "string",
+                    "enum": [
+                        "ask",
+                        "on",
+                        "off"
+                    ],
+                    "default": "ask",
+                    "markdownDescription": "Auto-summarize conversations on startup.\n- `ask`: Prompt before running\n- `on`: Run silently\n- `off`: Disabled"
+                },
+                "convManager.ai.minMessages": {
+                    "order": 6,
+                    "type": "number",
+                    "default": 5,
+                    "description": "Minimum message count for auto-summarize. Conversations with fewer messages are skipped."
+                },
+                "convManager.ai.cooldownHours": {
+                    "order": 7,
+                    "type": "number",
+                    "default": 2,
+                    "description": "Skip conversations modified within this many hours (likely still in progress)."
                 }
             }
         }

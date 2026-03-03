@@ -18,6 +18,10 @@ const TITLE_CACHE_KEY = 'titleCache';
 const MSG_COUNT_CACHE_KEY = 'messageCountCache';
 const SORT_CACHE_KEY = 'sortBy';
 
+/** Auto-summarize state */
+let autoSummarizeRunning = false;
+let autoSummarizeDismissed = false; // "暂不" → skip this VS Code session
+
 /**
  * Extension entry point.
  *
@@ -44,8 +48,10 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(treeView);
 
-    // Scan and populate on activation
-    loadConversations(context, treeProvider, treeView);
+    // Scan and populate on activation, then try auto-summarize
+    loadConversations(context, treeProvider, treeView).then(() => {
+        tryAutoSummarize(context, treeProvider);
+    });
 
     // Commands
     context.subscriptions.push(
@@ -438,6 +444,142 @@ async function loadConversations(
     }
     if (msgCountCacheUpdated) {
         context.globalState.update(MSG_COUNT_CACHE_KEY, msgCountCache);
+    }
+}
+
+// ====================== Auto-Summarize ======================
+
+/**
+ * Try to auto-summarize unsummarized conversations.
+ * Called after loadConversations completes.
+ *
+ * Behavior is controlled by convManager.ai.autoSummarize:
+ *   - "ask": Prompt user for confirmation (default)
+ *   - "on": Run silently
+ *   - "off": Disabled
+ */
+async function tryAutoSummarize(
+    context: vscode.ExtensionContext,
+    treeProvider: SessionTreeProvider,
+): Promise<void> {
+    // Guard: mutex + session dismiss flag
+    if (autoSummarizeRunning || autoSummarizeDismissed) { return; }
+
+    // Guard: check config
+    const cfg = vscode.workspace.getConfiguration('convManager.ai');
+    const mode = cfg.get<string>('autoSummarize') || 'ask';
+    if (mode === 'off') { return; }
+
+    // Guard: check API is configured
+    const endpoint = cfg.get<string>('endpoint');
+    const model = cfg.get<string>('model');
+    const apiKey = await getApiKey(context.secrets);
+    if (!endpoint || !apiKey || !model) { return; }
+
+    // Find candidates
+    const minMessages = cfg.get<number>('minMessages') ?? 5;
+    const cooldownHours = cfg.get<number>('cooldownHours') ?? 2;
+    const cooldownMs = cooldownHours * 60 * 60 * 1000;
+    const conversations = treeProvider.conversations;
+
+    const candidates = conversations.filter(c => {
+        if (treeProvider.summarizedIds.has(c.id)) { return false; }
+        if ((c.messageCount ?? 0) < minMessages) { return false; }
+        if (c.lastModified > Date.now() - cooldownMs) { return false; }
+        return true;
+    });
+
+    if (candidates.length === 0) { return; }
+
+    // "ask" mode: prompt user
+    if (mode === 'ask') {
+        const action = await vscode.window.showInformationMessage(
+            `发现 ${candidates.length} 条会话可自动总结（≥${minMessages} 条消息、${cooldownHours}h 内未活跃），是否继续？`,
+            '开始总结', '暂不', '不再提示',
+        );
+        if (action === '暂不' || !action) {
+            autoSummarizeDismissed = true;
+            return;
+        }
+        if (action === '不再提示') {
+            cfg.update('autoSummarize', 'off', vscode.ConfigurationTarget.Global);
+            return;
+        }
+        // '开始总结' falls through
+    }
+
+    // Run the queue
+    autoSummarizeRunning = true;
+    const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+    statusItem.show();
+
+    let success = 0;
+    let fail = 0;
+
+    try {
+        for (let i = 0; i < candidates.length; i++) {
+            const conv = candidates[i];
+            statusItem.text = `$(sync~spin) 总结中 ${i + 1}/${candidates.length}...`;
+            statusItem.tooltip = conv.title || conv.id.substring(0, 8);
+
+            try {
+                // Fetch messages
+                let messages = messageCache.get(conv.id);
+                if (!messages) {
+                    if (!apiClient) {
+                        apiClient = new AntigravityClient();
+                        await apiClient.connect();
+                    }
+                    if (!apiClient.isConnected) {
+                        throw new Error('API 不可用');
+                    }
+                    const fetched = await apiClient.getConversation(conv.id);
+                    if (fetched && fetched.length > 0) {
+                        messages = fetched;
+                        messageCache.set(conv.id, fetched);
+                    }
+                }
+
+                if (!messages || messages.length === 0) {
+                    fail++;
+                    continue;
+                }
+
+                // Call AI
+                const summaryText = await summarize(messages, context.secrets);
+                const entry = { text: summaryText, generatedAt: new Date().toISOString() };
+                setSummary(context.globalState, conv.id, entry);
+
+                treeProvider.summarizedIds.add(conv.id);
+                success++;
+
+                // Inter-request delay (2s) to avoid rate limiting
+                if (i < candidates.length - 1) {
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+            } catch (e: unknown) {
+                fail++;
+                const msg = e instanceof Error ? e.message : String(e);
+                console.warn(`[AutoSummarize] ${conv.id.slice(0, 8)} failed: ${msg}`);
+
+                // Back off on error (5s)
+                if (i < candidates.length - 1) {
+                    await new Promise(r => setTimeout(r, 5000));
+                }
+            }
+        }
+    } finally {
+        autoSummarizeRunning = false;
+        statusItem.dispose();
+
+        if (success > 0) {
+            treeProvider.refresh();
+            vscode.window.showInformationMessage(
+                `✨ 自动总结完成：${success} 条成功${fail > 0 ? `，${fail} 条失败` : ''}`,
+            );
+        } else if (fail > 0) {
+            vscode.window.showWarningMessage(`自动总结全部失败（${fail} 条）`);
+        }
     }
 }
 
