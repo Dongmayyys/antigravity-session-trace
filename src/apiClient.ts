@@ -288,11 +288,22 @@ export function extractMessages(steps: any[]): ConversationMessage[] {
             continue;
         }
 
-        messages.push({
-            role,
-            text: text.trim(),
-            ...(thinking ? { thinking: thinking.trim() } : {}),
-        });
+        // Merge consecutive messages with the same role (e.g. multiple AI response fragments)
+        const last = messages[messages.length - 1];
+        if (last && last.role === role) {
+            last.text += '\n\n' + text.trim();
+            if (thinking) {
+                last.thinking = last.thinking
+                    ? last.thinking + '\n\n' + thinking.trim()
+                    : thinking.trim();
+            }
+        } else {
+            messages.push({
+                role,
+                text: text.trim(),
+                ...(thinking ? { thinking: thinking.trim() } : {}),
+            });
+        }
     }
 
     return messages;
