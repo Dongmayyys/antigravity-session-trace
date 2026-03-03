@@ -316,9 +316,9 @@ export function activate(context: vscode.ExtensionContext) {
  *
  * Three-phase loading strategy:
  *   Phase 1: Local brain/ scan + apply cached workspace mappings (instant)
- *   Phase 2: GetAllCascadeTrajectories — batch metadata (~20% workspace coverage)
- *   Phase 3: GetCascadeTrajectory per conversation — deep workspace enrichment
- *            (batch parallel, progressive tree updates, results cached to globalState)
+ *   Phase 2: GetAllCascadeTrajectories — batch title + workspace enrichment
+ *   Phase 3: GetCascadeTrajectory per conversation — deep enrichment
+ *            (workspace, createdAt, messageCount; batch parallel, cached to globalState)
  */
 async function loadConversations(
     context: vscode.ExtensionContext,
@@ -352,7 +352,7 @@ async function loadConversations(
         treeProvider.setConversations(conversations);
         treeView.badge = { value: conversations.length, tooltip: `${conversations.length} conversations` };
 
-        // Phase 2: API metadata enrichment (limited coverage ~20%)
+        // Phase 2: API metadata enrichment
         try {
             if (!apiClient) {
                 apiClient = new AntigravityClient();
@@ -366,6 +366,7 @@ async function loadConversations(
                     for (const conv of conversations) {
                         const meta = metadata.get(conv.id);
                         if (meta) {
+                            conv.stale = false;
                             if (meta.title) {
                                 conv.title = meta.title;
                                 titleCache[conv.id] = meta.title;
@@ -377,6 +378,9 @@ async function loadConversations(
                                 cacheUpdated = true;
                             }
                             if (meta.branch) { conv.branch = meta.branch; }
+                        } else {
+                            // Not in API response → Antigravity no longer shows this conversation
+                            conv.stale = true;
                         }
                     }
                     treeProvider.setConversations(conversations);
@@ -483,6 +487,7 @@ async function tryAutoSummarize(
     const conversations = treeProvider.conversations;
 
     const candidates = conversations.filter(c => {
+        if (c.stale) { return false; }
         if (treeProvider.summarizedIds.has(c.id)) { return false; }
         if ((c.messageCount ?? 0) < minMessages) { return false; }
         if (c.lastModified > Date.now() - cooldownMs) { return false; }

@@ -223,36 +223,55 @@ export class SessionItem extends vscode.TreeItem {
         const rel = relativeTime(session.lastModified);
         const turns = session.messageCount;
         const hasSummary = summarizedIds?.has(session.id) ?? false;
-        const summaryBadge = hasSummary ? ' ✨' : '';
-        this.description = (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
 
-        // Markdown tooltip with metadata
-        this.tooltip = new vscode.MarkdownString([
-            `**${label}**`,
-            '',
-            `- **Workspace**: ${session.workspace || '(none)'}`,
-            `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
-            session.createdAt ? `- **Created**: ${new Date(session.createdAt).toLocaleString()}` : '',
-            turns !== undefined ? `- **Messages**: ${turns}` : '',
-            hasSummary ? `- **AI Summary**: ✅ 已总结` : '',
-            `- **ID**: \`${session.id}\``,
-        ].filter(Boolean).join('\n'));
-
-        // Icon color coding by message count
-        if (turns !== undefined && turns > 0) {
+        if (session.stale) {
+            // Stale: local remnant not shown by Antigravity
+            this.description = `(stale) · ${rel}`;
             this.iconPath = new vscode.ThemeIcon(
-                turns > 100 ? 'comment-unresolved' : 'comment',
-                turns > 100
-                    ? new vscode.ThemeColor('charts.red')
-                    : turns > 60
-                        ? new vscode.ThemeColor('charts.yellow')
-                        : undefined,
+                'circle-slash',
+                new vscode.ThemeColor('disabledForeground'),
             );
+            this.tooltip = new vscode.MarkdownString([
+                `**${label}**`,
+                '',
+                '⚠️ *Stale — exists locally but not shown in Antigravity*',
+                '',
+                `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
+                `- **ID**: \`${session.id}\``,
+            ].join('\n'));
         } else {
-            this.iconPath = new vscode.ThemeIcon('comment');
+            // Normal conversation
+            const summaryBadge = hasSummary ? ' ✨' : '';
+            this.description = (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
+
+            // Markdown tooltip with metadata
+            this.tooltip = new vscode.MarkdownString([
+                `**${label}**`,
+                '',
+                `- **Workspace**: ${session.workspace || '(none)'}`,
+                `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
+                session.createdAt ? `- **Created**: ${new Date(session.createdAt).toLocaleString()}` : '',
+                turns !== undefined ? `- **Messages**: ${turns}` : '',
+                hasSummary ? `- **AI Summary**: ✅ 已总结` : '',
+                `- **ID**: \`${session.id}\``,
+            ].filter(Boolean).join('\n'));
+
+            // Icon color coding by message count
+            if (turns !== undefined && turns > 0) {
+                this.iconPath = new vscode.ThemeIcon(
+                    turns > 100 ? 'comment-unresolved' : 'comment',
+                    turns > 100
+                        ? new vscode.ThemeColor('charts.red')
+                        : turns > 60
+                            ? new vscode.ThemeColor('charts.yellow')
+                            : undefined,
+                );
+            } else {
+                this.iconPath = new vscode.ThemeIcon('comment');
+            }
         }
 
-        this.contextValue = 'session';
+        this.contextValue = session.stale ? 'sessionStale' : 'session';
 
         this.command = {
             command: 'convManager.openSession',

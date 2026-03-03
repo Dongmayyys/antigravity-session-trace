@@ -11,4 +11,10 @@ export interface ConversationInfo {
     /** Creation timestamp from API metadata (epoch ms). */
     createdAt?: number;
     messageCount?: number;
+    /**
+     * True when the conversation exists locally but is NOT returned by
+     * GetAllCascadeTrajectories — i.e. Antigravity no longer displays it.
+     * Only set when the API is connected; unset when offline to avoid false positives.
+     */
+    stale?: boolean;
 }
