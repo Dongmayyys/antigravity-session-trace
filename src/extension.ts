@@ -33,6 +33,10 @@ export function activate(context: vscode.ExtensionContext) {
         treeProvider.setSortBy(savedSort);
     }
 
+    // Load summarized IDs from globalState for ✨ badges
+    const summaryCache: Record<string, unknown> = context.globalState.get('summaryCache', {});
+    treeProvider.summarizedIds = new Set(Object.keys(summaryCache));
+
     // Register native Tree View for the sidebar
     const treeView = vscode.window.createTreeView('convManager.sessions', {
         treeDataProvider: treeProvider,
@@ -249,7 +253,11 @@ export function activate(context: vscode.ExtensionContext) {
                     const entry = { text: summaryText, generatedAt: new Date().toISOString() };
                     setSummary(context.globalState, session.id, entry);
 
-                    // Step 4: Show in panel
+                    // Step 4: Update tree badge
+                    treeProvider.summarizedIds.add(session.id);
+                    treeProvider.refresh();
+
+                    // Step 5: Show in panel
                     ContentPanel.show(session.id, session.title || session.id.substring(0, 8),
                         async () => messages, summaryText);
 

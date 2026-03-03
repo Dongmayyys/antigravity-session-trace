@@ -27,6 +27,9 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     private _filterWorkspace: string | null = null; // null = show all
     private _searchQuery = '';
 
+    /** IDs of conversations that have AI summaries (set by extension.ts). */
+    summarizedIds: Set<string> = new Set();
+
     get sortBy(): SortBy { return this._sortBy; }
     get filterWorkspace(): string | null { return this._filterWorkspace; }
     get searchQuery(): string { return this._searchQuery; }
@@ -78,7 +81,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             return this._getRootChildren();
         }
         if (element instanceof CategoryItem) {
-            return element.sessions.map(s => new SessionItem(s));
+            return element.sessions.map(s => new SessionItem(s, this.summarizedIds));
         }
         return [];
     }
@@ -122,7 +125,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
         // When filtering to a single workspace, flatten (no grouping)
         if (this._filterWorkspace !== null) {
-            return sorted.map(s => new SessionItem(s));
+            return sorted.map(s => new SessionItem(s, this.summarizedIds));
         }
 
         // Group by workspace
@@ -208,7 +211,10 @@ class CategoryItem extends vscode.TreeItem {
  * - click: opens conversation in ContentPanel
  */
 export class SessionItem extends vscode.TreeItem {
-    constructor(public readonly session: ConversationInfo) {
+    constructor(
+        public readonly session: ConversationInfo,
+        summarizedIds?: Set<string>,
+    ) {
         const label = session.title || session.id.substring(0, 8);
         super(label, vscode.TreeItemCollapsibleState.None);
 
@@ -216,7 +222,9 @@ export class SessionItem extends vscode.TreeItem {
 
         const rel = relativeTime(session.lastModified);
         const turns = session.messageCount;
-        this.description = turns ? `${turns} msgs · ${rel}` : rel;
+        const hasSummary = summarizedIds?.has(session.id) ?? false;
+        const summaryBadge = hasSummary ? ' ✨' : '';
+        this.description = (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
 
         // Markdown tooltip with metadata
         this.tooltip = new vscode.MarkdownString([
@@ -226,6 +234,7 @@ export class SessionItem extends vscode.TreeItem {
             `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
             session.createdAt ? `- **Created**: ${new Date(session.createdAt).toLocaleString()}` : '',
             turns !== undefined ? `- **Messages**: ${turns}` : '',
+            hasSummary ? `- **AI Summary**: ✅ 已总结` : '',
             `- **ID**: \`${session.id}\``,
         ].filter(Boolean).join('\n'));
 
