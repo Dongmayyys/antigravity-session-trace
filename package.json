@@ -62,6 +62,18 @@
                 "title": "Filter by Workspace…",
                 "icon": "$(filter)",
                 "category": "Conversations"
+            },
+            {
+                "command": "convManager.summarize",
+                "title": "AI Summarize",
+                "icon": "$(sparkle)",
+                "category": "Conversations"
+            },
+            {
+                "command": "convManager.setApiKey",
+                "title": "Set AI API Key",
+                "icon": "$(key)",
+                "category": "Conversations"
             }
         ],
         "menus": {
@@ -92,8 +104,43 @@
                     "command": "convManager.openSession",
                     "when": "view == convManager.sessions && viewItem == session",
                     "group": "inline"
+                },
+                {
+                    "command": "convManager.summarize",
+                    "when": "view == convManager.sessions && viewItem == session",
+                    "group": "1_actions@1"
                 }
             ]
+        },
+        "configuration": {
+            "title": "Conversation Manager — AI",
+            "properties": {
+                "convManager.ai.endpoint": {
+                    "type": "string",
+                    "default": "",
+                    "description": "AI API base URL (e.g. https://api.openai.com/v1 or https://generativelanguage.googleapis.com/v1beta)"
+                },
+                "convManager.ai.model": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Model name (e.g. gpt-4o, gemini-2.0-flash)"
+                },
+                "convManager.ai.format": {
+                    "type": "string",
+                    "enum": [
+                        "openai",
+                        "gemini"
+                    ],
+                    "default": "openai",
+                    "description": "API format: openai (chat/completions + Bearer) or gemini (generateContent + ?key=)"
+                },
+                "convManager.ai.prompt": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "System prompt for AI summarization. Leave empty to use the built-in default.",
+                    "editPresentation": "multilineText"
+                }
+            }
         }
     },
     "scripts": {

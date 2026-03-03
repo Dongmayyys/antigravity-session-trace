@@ -4,6 +4,7 @@ import { ContentPanel } from './views/contentPanel';
 import { scanBrainDirectory } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
 import { ConversationInfo } from './types';
+import { summarize, getSummary, setSummary, setApiKey, getApiKey } from './aiSummarizer';
 
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
@@ -53,6 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('convManager.openSession', (session?: ConversationInfo) => {
             if (!session) { return; }
+            const existingSummary = getSummary(context.globalState, session.id);
             ContentPanel.show(
                 session.id,
                 session.title || session.id.substring(0, 8),
@@ -74,6 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                     return messages;
                 },
+                existingSummary?.text,
             );
         }),
 
@@ -186,6 +189,90 @@ export function activate(context: vscode.ExtensionContext) {
             if (picked) {
                 treeProvider.setFilter(picked.workspace);
             }
+        }),
+
+        vscode.commands.registerCommand('convManager.summarize', async (item?: any) => {
+            // Accept SessionItem from tree view context menu
+            const session: ConversationInfo | undefined = item?.session;
+            if (!session) {
+                vscode.window.showWarningMessage('请右键点击一条会话来生成 AI 总结。');
+                return;
+            }
+
+            // Check if already summarized
+            const existing = getSummary(context.globalState, session.id);
+            if (existing) {
+                const action = await vscode.window.showInformationMessage(
+                    `此会话已有总结 (${new Date(existing.generatedAt).toLocaleDateString()})。`,
+                    '重新生成', '查看', '取消',
+                );
+                if (action === '取消' || !action) { return; }
+                if (action === '查看') {
+                    ContentPanel.show(session.id, session.title || session.id.substring(0, 8),
+                        async () => messageCache.get(session.id) || null, existing.text);
+                    return;
+                }
+                // '重新生成' falls through
+            }
+
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `AI 总结: ${session.title || session.id.substring(0, 8)}`,
+                cancellable: false,
+            }, async (progress) => {
+                try {
+                    // Step 1: Get messages
+                    progress.report({ message: '获取会话内容...' });
+                    let messages = messageCache.get(session.id);
+                    if (!messages) {
+                        if (!apiClient) {
+                            apiClient = new AntigravityClient();
+                            await apiClient.connect();
+                        }
+                        if (!apiClient.isConnected) {
+                            throw new Error('无法连接 Antigravity API');
+                        }
+                        messages = await apiClient.getConversation(session.id);
+                        if (messages && messages.length > 0) {
+                            messageCache.set(session.id, messages);
+                        }
+                    }
+                    if (!messages || messages.length === 0) {
+                        throw new Error('无法获取会话消息');
+                    }
+
+                    // Step 2: Call AI
+                    progress.report({ message: '调用 AI 生成总结...' });
+                    const summaryText = await summarize(messages, context.secrets);
+
+                    // Step 3: Cache result
+                    const entry = { text: summaryText, generatedAt: new Date().toISOString() };
+                    setSummary(context.globalState, session.id, entry);
+
+                    // Step 4: Show in panel
+                    ContentPanel.show(session.id, session.title || session.id.substring(0, 8),
+                        async () => messages, summaryText);
+
+                    vscode.window.showInformationMessage('AI 总结生成完成。');
+                } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    vscode.window.showErrorMessage(`AI 总结失败: ${msg}`);
+                }
+            });
+        }),
+
+        vscode.commands.registerCommand('convManager.setApiKey', async () => {
+            const current = await getApiKey(context.secrets);
+            const hint = current ? `当前: ····${current.slice(-4)}` : '未设置';
+            const key = await vscode.window.showInputBox({
+                title: 'Set AI API Key',
+                prompt: `输入 AI API Key (${hint})`,
+                password: true,
+                placeHolder: '留空清除已有 key',
+            });
+            if (key === undefined) { return; } // cancelled
+            await setApiKey(context.secrets, key);
+            vscode.window.showInformationMessage(key ? 'API Key 已保存。' : 'API Key 已清除。');
         }),
     );
 }

@@ -50,22 +50,24 @@ export class ContentPanel {
      * @param conversationId - UUID of the conversation to display
      * @param title - Display title for the panel tab
      * @param fetchMessages - Async function that fetches conversation messages
+     * @param summaryText - Optional AI-generated summary to display above messages
      */
     public static async show(
         conversationId: string,
         title: string,
         fetchMessages: (id: string) => Promise<ConversationMessage[] | null>,
+        summaryText?: string,
     ): Promise<void> {
         // Reuse existing panel if available
         if (ContentPanel.currentPanel && !ContentPanel.currentPanel.disposed) {
             ContentPanel.currentPanel.panel.reveal(vscode.ViewColumn.One, false);
 
-            // Skip reload if already showing this conversation
-            if (ContentPanel.currentPanel.currentConversationId === conversationId) {
+            // Skip reload if already showing this conversation (unless summary changed)
+            if (ContentPanel.currentPanel.currentConversationId === conversationId && !summaryText) {
                 return;
             }
 
-            await ContentPanel.currentPanel.loadConversation(conversationId, title, fetchMessages);
+            await ContentPanel.currentPanel.loadConversation(conversationId, title, fetchMessages, summaryText);
             return;
         }
 
@@ -81,7 +83,7 @@ export class ContentPanel {
         );
 
         ContentPanel.currentPanel = new ContentPanel(panel);
-        await ContentPanel.currentPanel.loadConversation(conversationId, title, fetchMessages);
+        await ContentPanel.currentPanel.loadConversation(conversationId, title, fetchMessages, summaryText);
     }
 
     /**
@@ -91,6 +93,7 @@ export class ContentPanel {
         conversationId: string,
         title: string,
         fetchMessages: (id: string) => Promise<ConversationMessage[] | null>,
+        summaryText?: string,
     ): Promise<void> {
         this.currentConversationId = conversationId;
         this.panel.title = title;
@@ -115,7 +118,7 @@ export class ContentPanel {
                 return;
             }
 
-            this.panel.webview.html = getContentHtml(title, messages);
+            this.panel.webview.html = getContentHtml(title, messages, summaryText);
         } catch (e: unknown) {
             if (this.disposed || this.currentConversationId !== conversationId) {
                 return;
@@ -243,6 +246,40 @@ body {
     font-size: 12px;
     color: var(--text-secondary);
     margin-top: 4px;
+}
+
+/* Summary Card */
+.summary-card {
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--accent);
+    border-left: 4px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+.summary-header {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--accent);
+}
+.summary-body {
+    line-height: 1.7;
+}
+.summary-body h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 16px;
+    margin-bottom: 6px;
+}
+.summary-body h2:first-child {
+    margin-top: 0;
+}
+.summary-body ul, .summary-body ol {
+    padding-left: 20px;
+}
+.summary-body li {
+    margin-bottom: 2px;
 }
 
 /* Messages */
@@ -547,11 +584,18 @@ function getErrorHtml(title: string, errorMessage: string): string {
 </html>`;
 }
 
-function getContentHtml(title: string, messages: ConversationMessage[]): string {
+function getContentHtml(title: string, messages: ConversationMessage[], summaryText?: string): string {
     const messagesHtml = messages.map((msg, i) => renderMessage(msg, i)).join('\n');
     const messageCount = messages.length;
     const userCount = messages.filter(m => m.role === 'user').length;
     const assistantCount = messages.filter(m => m.role === 'assistant').length;
+
+    const summaryHtml = summaryText
+        ? `<div class="summary-card">
+               <div class="summary-header">✨ AI Summary</div>
+               <div class="summary-body">${renderMessageText(summaryText)}</div>
+           </div>`
+        : '';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -568,6 +612,7 @@ function getContentHtml(title: string, messages: ConversationMessage[]): string 
             <div class="panel-title">${escapeHtml(title)}</div>
             <div class="panel-meta">${messageCount} messages (${userCount} user, ${assistantCount} assistant)</div>
         </div>
+        ${summaryHtml}
         ${messagesHtml}
     </div>
     ${COPY_BUTTON_JS}
