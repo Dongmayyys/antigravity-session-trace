@@ -5,6 +5,7 @@ import { scanBrainDirectory } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
 import { ConversationInfo } from './types';
 import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection } from './aiSummarizer';
+import { StatsPanel, AiConfigSnapshot } from './views/statsPanel';
 
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
@@ -273,6 +274,19 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showErrorMessage(`AI 总结失败: ${msg}`);
                 }
             });
+        }),
+
+        vscode.commands.registerCommand('convManager.showStats', async () => {
+            const cfg = vscode.workspace.getConfiguration('convManager.ai');
+            const apiKey = await getApiKey(context.secrets);
+            const aiConfig: AiConfigSnapshot = {
+                minMessages: cfg.get<number>('minMessages') ?? 5,
+                cooldownHours: cfg.get<number>('cooldownHours') ?? 2,
+                hasApiKey: !!apiKey,
+                hasEndpoint: !!cfg.get<string>('endpoint'),
+                hasModel: !!cfg.get<string>('model'),
+            };
+            StatsPanel.show(treeProvider.conversations, treeProvider.summarizedIds, aiConfig);
         }),
 
         vscode.commands.registerCommand('convManager.setApiKey', async () => {

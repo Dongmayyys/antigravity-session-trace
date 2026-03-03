@@ -70,6 +70,12 @@
                 "category": "Conversations"
             },
             {
+                "command": "convManager.showStats",
+                "title": "Show Stats",
+                "icon": "$(graph)",
+                "category": "Conversations"
+            },
+            {
                 "command": "convManager.setApiKey",
                 "title": "Set AI API Key",
                 "icon": "$(key)",
