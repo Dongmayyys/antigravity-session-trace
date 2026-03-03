@@ -8,10 +8,14 @@ import { ConversationInfo } from './types';
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
 
+/** In-memory cache for fetched conversation messages (avoids repeated API calls within session) */
+const messageCache = new Map<string, ConversationMessage[]>();
+
 /** globalState keys for persisted caches */
 const WORKSPACE_CACHE_KEY = 'workspaceCache';
 const TITLE_CACHE_KEY = 'titleCache';
 const MSG_COUNT_CACHE_KEY = 'messageCountCache';
+const SORT_CACHE_KEY = 'sortBy';
 
 /**
  * Extension entry point.
@@ -21,6 +25,12 @@ const MSG_COUNT_CACHE_KEY = 'messageCountCache';
  */
 export function activate(context: vscode.ExtensionContext) {
     const treeProvider = new SessionTreeProvider();
+
+    // Restore persisted sort order
+    const savedSort = context.globalState.get<SortBy>(SORT_CACHE_KEY);
+    if (savedSort) {
+        treeProvider.setSortBy(savedSort);
+    }
 
     // Register native Tree View for the sidebar
     const treeView = vscode.window.createTreeView('convManager.sessions', {
@@ -37,6 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('convManager.refresh', () => {
             apiClient?.disconnect();
             apiClient = undefined;
+            messageCache.clear();
             loadConversations(context, treeProvider, treeView);
         }),
 
@@ -46,6 +57,10 @@ export function activate(context: vscode.ExtensionContext) {
                 session.id,
                 session.title || session.id.substring(0, 8),
                 async (id: string): Promise<ConversationMessage[] | null> => {
+                    // Return cached messages if available (avoids repeated API calls)
+                    const cached = messageCache.get(id);
+                    if (cached) { return cached; }
+
                     if (!apiClient) {
                         apiClient = new AntigravityClient();
                         await apiClient.connect();
@@ -53,7 +68,11 @@ export function activate(context: vscode.ExtensionContext) {
                     if (!apiClient.isConnected) {
                         throw new Error('Cannot connect to Antigravity API.\n\nMake sure Antigravity is running.');
                     }
-                    return apiClient.getConversation(id);
+                    const messages = await apiClient.getConversation(id);
+                    if (messages && messages.length > 0) {
+                        messageCache.set(id, messages);
+                    }
+                    return messages;
                 },
             );
         }),
@@ -137,6 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
             });
             if (picked) {
                 treeProvider.setSortBy(picked.sortKey);
+                context.globalState.update(SORT_CACHE_KEY, picked.sortKey);
             }
         }),
 

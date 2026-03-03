@@ -182,20 +182,12 @@ function renderMessage(msg: ConversationMessage, index: number): string {
     const roleLabel = isUser ? 'You' : 'Antigravity';
     const roleIcon = isUser ? '👤' : '✦';
 
-    const thinkingHtml = msg.thinking
-        ? `<details class="thinking">
-               <summary>Thinking process</summary>
-               <div class="thinking-content">${renderMessageText(msg.thinking)}</div>
-           </details>`
-        : '';
-
     return `
         <div class="message ${roleClass}" style="animation-delay: ${Math.min(index * 0.05, 0.5)}s">
             <div class="message-header">
                 <span class="role-icon">${roleIcon}</span>
                 <span class="role-label">${roleLabel}</span>
             </div>
-            ${thinkingHtml}
             <div class="message-body">${renderMessageText(msg.text)}</div>
         </div>`;
 }
@@ -417,34 +409,6 @@ code {
     border-color: #7ee787;
 }
 
-/* Thinking (collapsible) */
-.thinking {
-    margin-bottom: 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-}
-.thinking summary {
-    padding: 8px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    user-select: none;
-    opacity: 0.5;
-    transition: opacity 0.2s;
-    background: rgba(255, 255, 255, 0.02);
-}
-.thinking summary:hover { opacity: 0.8; }
-.thinking-content {
-    padding: 12px;
-    font-size: 12px;
-    opacity: 0.7;
-    border-top: 1px solid var(--border);
-    max-height: 400px;
-    overflow-y: auto;
-}
 
 /* Skeleton animation */
 @keyframes shimmer {
