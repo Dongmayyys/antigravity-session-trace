@@ -627,7 +627,14 @@ async function tryAutoSummarize(
 
     // Run the queue
     autoSummarizeRunning = true;
+    let autoSummarizeCancelled = false;
+
+    const stopCommand = vscode.commands.registerCommand('convManager._stopAutoSummarize', () => {
+        autoSummarizeCancelled = true;
+    });
+
     const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+    statusItem.command = 'convManager._stopAutoSummarize';
     statusItem.show();
 
     let success = 0;
@@ -635,9 +642,11 @@ async function tryAutoSummarize(
 
     try {
         for (let i = 0; i < candidates.length; i++) {
+            if (autoSummarizeCancelled) { break; }
+
             const conv = candidates[i];
-            statusItem.text = `$(sync~spin) 总结中 ${i + 1}/${candidates.length}...`;
-            statusItem.tooltip = conv.title || conv.id.substring(0, 8);
+            statusItem.text = `$(sync~spin) 总结中 ${i + 1}/${candidates.length}…`;
+            statusItem.tooltip = `${conv.title || conv.id.substring(0, 8)} — 点击中止`;
 
             try {
                 // Fetch messages
@@ -688,8 +697,14 @@ async function tryAutoSummarize(
     } finally {
         autoSummarizeRunning = false;
         statusItem.dispose();
+        stopCommand.dispose();
 
-        if (success > 0) {
+        if (autoSummarizeCancelled) {
+            treeProvider.refresh();
+            vscode.window.showInformationMessage(
+                `⏹ 自动总结已中止：${success} 条已完成${fail > 0 ? `，${fail} 条失败` : ''}`,
+            );
+        } else if (success > 0) {
             treeProvider.refresh();
             vscode.window.showInformationMessage(
                 `✨ 自动总结完成：${success} 条成功${fail > 0 ? `，${fail} 条失败` : ''}`,
