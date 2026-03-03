@@ -3,15 +3,16 @@
  *
  * Displays aggregate counts (total, active, stale, summarized, etc.) and
  * lists anomalous conversations for debugging.
+ * Supports interactive cleanup of stale conversations via postMessage.
  *
  * Usage:
- *   StatsPanel.show(conversations, summarizedIds, aiConfig);
+ *   StatsPanel.show(conversations, summarizedIds, aiConfig, callbacks);
  */
 
 import * as vscode from 'vscode';
 import { ConversationInfo } from '../types';
 
-/** AI configuration snapshot passed from extension.ts for summarizability analysis. */
+/** AI configuration snapshot for summarizability analysis. */
 export interface AiConfigSnapshot {
     minMessages: number;
     cooldownHours: number;
@@ -20,16 +21,33 @@ export interface AiConfigSnapshot {
     hasModel: boolean;
 }
 
+/** Callbacks from the stats panel to the extension host. */
+export interface StatsPanelCallbacks {
+    onCleanStale: () => Promise<void>;
+}
+
 export class StatsPanel {
     private static readonly viewType = 'convManager.stats';
     private static currentPanel: StatsPanel | undefined;
 
     private disposed = false;
+    private callbacks: StatsPanelCallbacks;
 
-    private constructor(private readonly panel: vscode.WebviewPanel) {
+    private constructor(
+        private readonly panel: vscode.WebviewPanel,
+        callbacks: StatsPanelCallbacks,
+    ) {
+        this.callbacks = callbacks;
+
         panel.onDidDispose(() => {
             this.disposed = true;
             StatsPanel.currentPanel = undefined;
+        });
+
+        panel.webview.onDidReceiveMessage(async (msg) => {
+            if (msg.command === 'cleanStale') {
+                await this.callbacks.onCleanStale();
+            }
         });
     }
 
@@ -40,9 +58,11 @@ export class StatsPanel {
         conversations: readonly ConversationInfo[],
         summarizedIds: Set<string>,
         aiConfig: AiConfigSnapshot,
+        callbacks: StatsPanelCallbacks,
     ): void {
         if (StatsPanel.currentPanel && !StatsPanel.currentPanel.disposed) {
             StatsPanel.currentPanel.panel.reveal(vscode.ViewColumn.Two, true);
+            StatsPanel.currentPanel.callbacks = callbacks;
             StatsPanel.currentPanel.panel.webview.html = buildHtml(conversations, summarizedIds, aiConfig);
             return;
         }
@@ -51,10 +71,10 @@ export class StatsPanel {
             StatsPanel.viewType,
             'Conversation Stats',
             { viewColumn: vscode.ViewColumn.Two, preserveFocus: true },
-            { enableScripts: false },
+            { enableScripts: true },
         );
 
-        StatsPanel.currentPanel = new StatsPanel(panel);
+        StatsPanel.currentPanel = new StatsPanel(panel, callbacks);
         panel.webview.html = buildHtml(conversations, summarizedIds, aiConfig);
     }
 }
@@ -84,12 +104,12 @@ function buildHtml(
     // Stale conversations list
     const staleList = conversations.filter(c => c.stale);
 
-    // Unsummarizable analysis — check each non-summarized conversation
+    // Unsummarizable analysis
     const cooldownMs = aiConfig.cooldownHours * 60 * 60 * 1000;
     const unsummarizable: UnsummarizableEntry[] = [];
 
     for (const c of conversations) {
-        if (summarizedIds.has(c.id)) { continue; } // already summarized
+        if (summarizedIds.has(c.id)) { continue; }
 
         let reason: string | null = null;
 
@@ -104,7 +124,6 @@ function buildHtml(
         } else if (c.lastModified > Date.now() - cooldownMs) {
             reason = `Recently active (within ${aiConfig.cooldownHours}h)`;
         }
-        // else: summarizable — don't add to the list
 
         if (reason) {
             unsummarizable.push({ conv: c, reason });
@@ -146,7 +165,7 @@ function buildHtml(
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Conversation Stats</title>
 <style>
@@ -162,6 +181,9 @@ function buildHtml(
     --dim: var(--vscode-descriptionForeground, rgba(255,255,255,0.5));
     --font: var(--vscode-font-family, system-ui);
     --font-mono: var(--vscode-editor-font-family, 'Cascadia Code', monospace);
+    --btn-bg: var(--vscode-button-background, #0e639c);
+    --btn-fg: var(--vscode-button-foreground, #fff);
+    --btn-hover: var(--vscode-button-hoverBackground, #1177bb);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -218,15 +240,20 @@ h1 {
 .section {
     margin-bottom: 28px;
 }
-.section h2 {
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.section-header h2 {
     font-size: 15px;
     font-weight: 600;
-    margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
-.section h2 .badge {
+.section-header h2 .badge {
     font-size: 11px;
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -238,6 +265,27 @@ h1 {
     font-size: 12px;
     color: var(--dim);
     margin-bottom: 10px;
+}
+
+/* Buttons */
+.btn-danger {
+    font-family: var(--font);
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--error);
+    background: transparent;
+    color: var(--error);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.btn-danger:hover:not(:disabled) {
+    background: var(--error);
+    color: #fff;
+}
+.btn-danger:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* Tables */
@@ -376,7 +424,12 @@ code {
 
     <!-- Stale conversations -->
     <div class="section">
-        <h2>⚠️ Stale Conversations <span class="badge">${stale}</span></h2>
+        <div class="section-header">
+            <h2>⚠️ Stale Conversations <span class="badge">${stale}</span></h2>
+            <button id="cleanBtn" class="btn-danger" ${stale === 0 ? 'disabled' : ''}>
+                🗑️ Clean ${stale} stale
+            </button>
+        </div>
         <table>
             <thead><tr><th>ID</th><th>Title</th><th>Workspace</th><th>Last Modified</th></tr></thead>
             <tbody>${staleTableRows}</tbody>
@@ -385,13 +438,25 @@ code {
 
     <!-- Unsummarizable conversations -->
     <div class="section">
-        <h2>🚫 Not Summarizable <span class="badge">${unsummarizable.length}</span></h2>
+        <div class="section-header">
+            <h2>🚫 Not Summarizable <span class="badge">${unsummarizable.length}</span></h2>
+        </div>
         <p class="config-line">AI: ${aiStatus} · Min messages: ${aiConfig.minMessages} · Cooldown: ${aiConfig.cooldownHours}h</p>
         <table>
             <thead><tr><th>ID</th><th>Title</th><th>Workspace</th><th>Msgs</th><th>Reason</th></tr></thead>
             <tbody>${unsumRows}</tbody>
         </table>
     </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        const btn = document.getElementById('cleanBtn');
+        btn.addEventListener('click', () => {
+            btn.disabled = true;
+            btn.textContent = '⏳ Cleaning...';
+            vscode.postMessage({ command: 'cleanStale' });
+        });
+    </script>
 </body>
 </html>`;
 }

@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { SessionTreeProvider, SortBy, relativeTime } from './views/sidebarViewProvider';
 import { ContentPanel } from './views/contentPanel';
-import { scanBrainDirectory } from './brainScanner';
+import { scanBrainDirectory, getAntigravityRoot } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
 import { ConversationInfo } from './types';
 import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection } from './aiSummarizer';
-import { StatsPanel, AiConfigSnapshot } from './views/statsPanel';
+import { StatsPanel, AiConfigSnapshot, StatsPanelCallbacks } from './views/statsPanel';
 
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
@@ -286,7 +287,104 @@ export function activate(context: vscode.ExtensionContext) {
                 hasEndpoint: !!cfg.get<string>('endpoint'),
                 hasModel: !!cfg.get<string>('model'),
             };
-            StatsPanel.show(treeProvider.conversations, treeProvider.summarizedIds, aiConfig);
+
+            const showStatsPanel = () => {
+                const freshCfg = vscode.workspace.getConfiguration('convManager.ai');
+                const freshAiConfig: AiConfigSnapshot = {
+                    ...aiConfig,
+                    hasApiKey: aiConfig.hasApiKey,
+                    hasEndpoint: !!freshCfg.get<string>('endpoint'),
+                    hasModel: !!freshCfg.get<string>('model'),
+                };
+                StatsPanel.show(treeProvider.conversations, treeProvider.summarizedIds, freshAiConfig, callbacks);
+            };
+
+            const callbacks: StatsPanelCallbacks = {
+                onCleanStale: async () => {
+                    const staleConvs = treeProvider.conversations.filter(c => c.stale);
+                    if (staleConvs.length === 0) {
+                        vscode.window.showInformationMessage('No stale conversations to clean.');
+                        showStatsPanel();
+                        return;
+                    }
+
+                    const detail = staleConvs
+                        .map(c => `• ${c.title || c.id.substring(0, 8)}`)
+                        .join('\n');
+
+                    const confirm = await vscode.window.showWarningMessage(
+                        `将清理 ${staleConvs.length} 个失效会话（移至回收站）`,
+                        { modal: true, detail },
+                        '确认清理',
+                    );
+                    if (confirm !== '确认清理') {
+                        showStatsPanel(); // re-render to reset button state
+                        return;
+                    }
+
+                    const root = getAntigravityRoot();
+                    let cleaned = 0;
+
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: 'Cleaning stale conversations…',
+                    }, async (progress) => {
+                        for (const conv of staleConvs) {
+                            progress.report({ message: `${cleaned + 1}/${staleConvs.length}` });
+
+                            // Delete brain/{id}/ directory
+                            try {
+                                const brainUri = vscode.Uri.file(path.join(root, 'brain', conv.id));
+                                await vscode.workspace.fs.delete(brainUri, { recursive: true, useTrash: true });
+                            } catch { /* may not exist */ }
+
+                            // Delete conversations/{id}.pb
+                            try {
+                                const pbUri = vscode.Uri.file(path.join(root, 'conversations', `${conv.id}.pb`));
+                                await vscode.workspace.fs.delete(pbUri, { useTrash: true });
+                            } catch { /* may not exist */ }
+
+                            // Clean in-memory cache
+                            messageCache.delete(conv.id);
+                            treeProvider.summarizedIds.delete(conv.id);
+                            cleaned++;
+                        }
+                    });
+
+                    // Clean globalState caches in batch
+                    const staleIds = new Set(staleConvs.map(c => c.id));
+                    const wsCache: Record<string, string | null> = context.globalState.get(WORKSPACE_CACHE_KEY, {});
+                    const titleCacheData: Record<string, string> = context.globalState.get(TITLE_CACHE_KEY, {});
+                    const msgCache: Record<string, number> = context.globalState.get(MSG_COUNT_CACHE_KEY, {});
+                    const sumCache: Record<string, unknown> = context.globalState.get('summaryCache', {});
+
+                    for (const id of staleIds) {
+                        delete wsCache[id];
+                        delete titleCacheData[id];
+                        delete msgCache[id];
+                        delete sumCache[id];
+                    }
+
+                    await context.globalState.update(WORKSPACE_CACHE_KEY, wsCache);
+                    await context.globalState.update(TITLE_CACHE_KEY, titleCacheData);
+                    await context.globalState.update(MSG_COUNT_CACHE_KEY, msgCache);
+                    await context.globalState.update('summaryCache', sumCache);
+
+                    // Update in-memory conversation list (remove stale) and refresh tree
+                    const remaining = treeProvider.conversations.filter(c => !staleIds.has(c.id));
+                    treeProvider.setConversations([...remaining]);
+                    treeView.badge = { value: remaining.length, tooltip: `${remaining.length} conversations` };
+
+                    // Refresh stats panel with updated data
+                    showStatsPanel();
+
+                    vscode.window.showInformationMessage(
+                        `已清理 ${cleaned} 个失效会话（已移至回收站）`,
+                    );
+                },
+            };
+
+            showStatsPanel();
         }),
 
         vscode.commands.registerCommand('convManager.setApiKey', async () => {
