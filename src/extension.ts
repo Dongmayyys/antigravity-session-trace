@@ -5,7 +5,7 @@ import { ContentPanel } from './views/contentPanel';
 import { scanBrainDirectory, getAntigravityRoot } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
 import { ConversationInfo } from './types';
-import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection } from './aiSummarizer';
+import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection, SummaryEntry } from './aiSummarizer';
 import { StatsPanel, AiConfigSnapshot, StatsPanelCallbacks } from './views/statsPanel';
 
 // Shared client instance (reused across refreshes)
@@ -53,8 +53,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(treeView);
 
-    // Scan and populate on activation, then try auto-summarize
+    // Scan and populate on activation, then invalidate stale summaries, then auto-summarize
     loadConversations(context, treeProvider, treeView).then(() => {
+        invalidateStaleSummaries(context, treeProvider);
         tryAutoSummarize(context, treeProvider);
     });
 
@@ -64,7 +65,9 @@ export function activate(context: vscode.ExtensionContext) {
             apiClient?.disconnect();
             apiClient = undefined;
             messageCache.clear();
-            loadConversations(context, treeProvider, treeView);
+            loadConversations(context, treeProvider, treeView).then(() => {
+                invalidateStaleSummaries(context, treeProvider);
+            });
         }),
 
         vscode.commands.registerCommand('convManager.openSession', (session?: ConversationInfo) => {
@@ -261,7 +264,7 @@ export function activate(context: vscode.ExtensionContext) {
                     const summaryText = await summarize(messages, context.secrets);
 
                     // Step 3: Cache result
-                    const entry = { text: summaryText, generatedAt: new Date().toISOString() };
+                    const entry = { text: summaryText, generatedAt: new Date().toISOString(), messageCount: session.messageCount || 0 };
                     setSummary(context.globalState, session.id, entry);
 
                     // Step 4: Update tree badge + tooltip preview
@@ -567,6 +570,49 @@ async function loadConversations(
     }
 }
 
+// ====================== Stale Summary Detection ======================
+
+/**
+ * Invalidate summaries that are outdated due to new conversation activity.
+ *
+ * Compares the message count stored at summarization time with the current
+ * message count. If the delta exceeds the configured threshold, the summary
+ * is deleted — returning the conversation to "unsummarized" status so it
+ * naturally enters the auto-summarize queue.
+ */
+function invalidateStaleSummaries(
+    context: vscode.ExtensionContext,
+    treeProvider: SessionTreeProvider,
+): void {
+    const cfg = vscode.workspace.getConfiguration('convManager.ai');
+    const threshold = cfg.get<number>('staleThreshold') ?? 10;
+    const cache: Record<string, SummaryEntry> = context.globalState.get('summaryCache', {});
+    const conversations = treeProvider.conversations;
+    let changed = false;
+
+    for (const conv of conversations) {
+        const entry = cache[conv.id];
+        if (!entry) { continue; }
+
+        // Skip legacy entries without messageCount (backward-compatible)
+        if (entry.messageCount === undefined || conv.messageCount === undefined) { continue; }
+
+        const delta = conv.messageCount - entry.messageCount;
+        if (delta >= threshold) {
+            delete cache[conv.id];
+            treeProvider.summarizedIds.delete(conv.id);
+            treeProvider.summaryTexts.delete(conv.id);
+            changed = true;
+            console.log(`[ConvManager] Summary invalidated: ${conv.title || conv.id.slice(0, 8)} (+${delta} msgs)`);
+        }
+    }
+
+    if (changed) {
+        context.globalState.update('summaryCache', cache);
+        treeProvider.refresh();
+    }
+}
+
 // ====================== Auto-Summarize ======================
 
 /**
@@ -677,7 +723,7 @@ async function tryAutoSummarize(
 
                 // Call AI
                 const summaryText = await summarize(messages, context.secrets);
-                const entry = { text: summaryText, generatedAt: new Date().toISOString() };
+                const entry = { text: summaryText, generatedAt: new Date().toISOString(), messageCount: conv.messageCount || 0 };
                 setSummary(context.globalState, conv.id, entry);
 
                 treeProvider.summarizedIds.add(conv.id);

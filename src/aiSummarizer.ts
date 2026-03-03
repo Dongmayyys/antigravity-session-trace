@@ -18,6 +18,8 @@ import { ConversationMessage } from './apiClient';
 export interface SummaryEntry {
     text: string;
     generatedAt: string;
+    /** Message count at the time of summarization (used for staleness detection). */
+    messageCount?: number;
 }
 
 /** globalState key for summary cache */

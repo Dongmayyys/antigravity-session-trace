@@ -172,6 +172,12 @@
                     "type": "number",
                     "default": 2,
                     "description": "Skip conversations modified within this many hours (likely still in progress)."
+                },
+                "convManager.ai.staleThreshold": {
+                    "order": 8,
+                    "type": "number",
+                    "default": 10,
+                    "description": "Message increase threshold to invalidate an existing summary. When a conversation gains this many new messages since its last summary, the summary is cleared for re-generation."
                 }
             }
         }
