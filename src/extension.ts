@@ -4,7 +4,7 @@ import { ContentPanel } from './views/contentPanel';
 import { scanBrainDirectory } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
 import { ConversationInfo } from './types';
-import { summarize, getSummary, setSummary, setApiKey, getApiKey } from './aiSummarizer';
+import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection } from './aiSummarizer';
 
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
@@ -236,7 +236,7 @@ export function activate(context: vscode.ExtensionContext) {
                         if (!apiClient.isConnected) {
                             throw new Error('无法连接 Antigravity API');
                         }
-                        messages = await apiClient.getConversation(session.id);
+                        messages = await apiClient.getConversation(session.id) ?? undefined;
                         if (messages && messages.length > 0) {
                             messageCache.set(session.id, messages);
                         }
@@ -280,7 +280,27 @@ export function activate(context: vscode.ExtensionContext) {
             });
             if (key === undefined) { return; } // cancelled
             await setApiKey(context.secrets, key);
-            vscode.window.showInformationMessage(key ? 'API Key 已保存。' : 'API Key 已清除。');
+
+            if (!key) {
+                vscode.window.showInformationMessage('API Key 已清除。');
+                return;
+            }
+
+            // Auto-test connection after saving
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '验证 AI API 连通性...',
+            }, async () => {
+                try {
+                    const models = await testConnection(context.secrets);
+                    vscode.window.showInformationMessage(
+                        `✅ 连接成功！发现 ${models.length} 个模型${models.length > 0 ? `（${models.slice(0, 3).join(', ')}…）` : ''}`,
+                    );
+                } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    vscode.window.showWarningMessage(`API Key 已保存，但连接测试失败: ${msg}`);
+                }
+            });
         }),
     );
 }

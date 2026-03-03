@@ -108,6 +108,38 @@ export async function summarize(
     }
 }
 
+/**
+ * Test API connectivity by calling the /models endpoint.
+ * Returns a list of available model names on success.
+ */
+export async function testConnection(secrets: vscode.SecretStorage): Promise<string[]> {
+    const cfg = getConfig();
+    const apiKey = await getApiKey(secrets);
+
+    if (!cfg.endpoint) { throw new Error('请先配置 Endpoint (convManager.ai.endpoint)'); }
+    if (!apiKey) { throw new Error('API Key 未设置'); }
+
+    const base = cfg.endpoint;
+    let url: string;
+    let headers: Record<string, string> = {};
+
+    if (cfg.format === 'gemini') {
+        url = `${base}/models?key=${apiKey}`;
+    } else {
+        url = `${base}/models`;
+        headers = { 'Authorization': `Bearer ${apiKey}` };
+    }
+
+    const data = await httpGet(url, headers);
+    const result = JSON.parse(data);
+
+    if (cfg.format === 'gemini') {
+        return (result.models || []).map((m: any) => (m.name || '').replace('models/', '')).slice(0, 15);
+    } else {
+        return (result.data || []).map((m: any) => m.id).slice(0, 15);
+    }
+}
+
 // ====================== API Implementations ======================
 
 async function callOpenAI(
@@ -188,6 +220,36 @@ function httpPost(url: string, body: string, headers: Record<string, string>): P
             req.destroy(new Error('请求超时 (60s)'));
         });
         req.write(body);
+        req.end();
+    });
+}
+
+/** Simple HTTPS/HTTP GET request. */
+function httpGet(url: string, headers: Record<string, string>): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const parsed = new URL(url);
+        const mod = parsed.protocol === 'https:' ? https : http;
+
+        const req = mod.request(parsed, {
+            method: 'GET',
+            headers,
+        }, (res) => {
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk: Buffer) => chunks.push(chunk));
+            res.on('end', () => {
+                const text = Buffer.concat(chunks).toString('utf-8');
+                if (res.statusCode && res.statusCode >= 400) {
+                    reject(new Error(`API ${res.statusCode}: ${text.slice(0, 300)}`));
+                } else {
+                    resolve(text);
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.setTimeout(15000, () => {
+            req.destroy(new Error('连接超时 (15s)'));
+        });
         req.end();
     });
 }

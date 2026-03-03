@@ -118,7 +118,7 @@
                 "convManager.ai.endpoint": {
                     "type": "string",
                     "default": "",
-                    "description": "AI API base URL (e.g. https://api.openai.com/v1 or https://generativelanguage.googleapis.com/v1beta)"
+                    "markdownDescription": "AI API base URL (e.g. `https://api.openai.com/v1` or `https://generativelanguage.googleapis.com/v1beta`)\n\n> 🔐 **API Key** 通过 OS 级安全存储保存，请通过命令面板设置：`Ctrl+Shift+P` → `Conversations: Set AI API Key`"
                 },
                 "convManager.ai.model": {
                     "type": "string",
