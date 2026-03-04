@@ -80,6 +80,18 @@
                 "title": "Set AI API Key",
                 "icon": "$(key)",
                 "category": "Conversations"
+            },
+            {
+                "command": "convManager.star",
+                "title": "Star Conversation",
+                "icon": "$(star-empty)",
+                "category": "Conversations"
+            },
+            {
+                "command": "convManager.unstar",
+                "title": "Unstar Conversation",
+                "icon": "$(star-full)",
+                "category": "Conversations"
             }
         ],
         "menus": {
@@ -107,14 +119,34 @@
             ],
             "view/item/context": [
                 {
-                    "command": "convManager.openSession",
+                    "command": "convManager.star",
                     "when": "view == convManager.sessions && viewItem == session",
-                    "group": "inline"
+                    "group": "inline@1"
+                },
+                {
+                    "command": "convManager.unstar",
+                    "when": "view == convManager.sessions && viewItem == sessionStarred",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "convManager.openSession",
+                    "when": "view == convManager.sessions && viewItem =~ /^session(Starred)?$/",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "convManager.star",
+                    "when": "view == convManager.sessions && viewItem == session",
+                    "group": "1_actions@1"
+                },
+                {
+                    "command": "convManager.unstar",
+                    "when": "view == convManager.sessions && viewItem == sessionStarred",
+                    "group": "1_actions@1"
                 },
                 {
                     "command": "convManager.summarize",
-                    "when": "view == convManager.sessions && viewItem == session",
-                    "group": "1_actions@1"
+                    "when": "view == convManager.sessions && viewItem =~ /^session(Starred)?$/",
+                    "group": "1_actions@2"
                 }
             ]
         },

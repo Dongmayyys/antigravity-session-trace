@@ -26,6 +26,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     private _sortBy: SortBy = 'date';
     private _filterWorkspace: string | null = null; // null = show all
     private _searchQuery = '';
+    private _showStarredOnly = false;
 
     /** IDs of conversations that have AI summaries (set by extension.ts). */
     summarizedIds: Set<string> = new Set();
@@ -33,8 +34,12 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     /** Summary texts keyed by conversation ID (set by extension.ts for tooltip preview). */
     summaryTexts: Map<string, string> = new Map();
 
+    /** IDs of starred conversations (set by extension.ts, persisted in globalState). */
+    starredIds: Set<string> = new Set();
+
     get sortBy(): SortBy { return this._sortBy; }
     get filterWorkspace(): string | null { return this._filterWorkspace; }
+    get showStarredOnly(): boolean { return this._showStarredOnly; }
     get searchQuery(): string { return this._searchQuery; }
     get conversations(): readonly ConversationInfo[] { return this._conversations; }
 
@@ -54,6 +59,13 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
     setFilter(workspace: string | null): void {
         this._filterWorkspace = workspace;
+        this._showStarredOnly = false;
+        this._onDidChangeTreeData.fire();
+    }
+
+    setShowStarredOnly(show: boolean): void {
+        this._showStarredOnly = show;
+        if (show) { this._filterWorkspace = null; }
         this._onDidChangeTreeData.fire();
     }
 
@@ -84,7 +96,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             return this._getRootChildren();
         }
         if (element instanceof CategoryItem) {
-            return element.sessions.map(s => new SessionItem(s, this.summarizedIds, this.summaryTexts));
+            return element.sessions.map(s => new SessionItem(s, this.summarizedIds, this.summaryTexts, this.starredIds));
         }
         return [];
     }
@@ -104,6 +116,11 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             );
         }
 
+        // Starred filter
+        if (this._showStarredOnly) {
+            filtered = filtered.filter(c => this.starredIds.has(c.id));
+        }
+
         // Workspace filter
         if (this._filterWorkspace !== null) {
             if (this._filterWorkspace === '') {
@@ -120,15 +137,17 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         if (sorted.length === 0) {
             const hint = this._searchQuery
                 ? 'No matches — try a different search term'
-                : this._filterWorkspace !== null
-                    ? 'No conversations in this workspace'
-                    : 'No conversations found';
+                : this._showStarredOnly
+                    ? 'No starred conversations'
+                    : this._filterWorkspace !== null
+                        ? 'No conversations in this workspace'
+                        : 'No conversations found';
             return [new InfoItem(hint, '', 'info')];
         }
 
-        // When filtering to a single workspace, flatten (no grouping)
-        if (this._filterWorkspace !== null) {
-            return sorted.map(s => new SessionItem(s, this.summarizedIds, this.summaryTexts));
+        // When filtering to a single workspace or starred-only, flatten (no grouping)
+        if (this._filterWorkspace !== null || this._showStarredOnly) {
+            return sorted.map(s => new SessionItem(s, this.summarizedIds, this.summaryTexts, this.starredIds));
         }
 
         // Group by workspace
@@ -169,6 +188,15 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
                     return aName.localeCompare(bName);
                 });
                 break;
+        }
+
+        // Starred conversations float to top (stable sort preserves primary order within groups)
+        if (this.starredIds.size > 0) {
+            conversations.sort((a, b) => {
+                const as = this.starredIds.has(a.id) ? 0 : 1;
+                const bs = this.starredIds.has(b.id) ? 0 : 1;
+                return as - bs;
+            });
         }
     }
 }
@@ -218,6 +246,7 @@ export class SessionItem extends vscode.TreeItem {
         public readonly session: ConversationInfo,
         summarizedIds?: Set<string>,
         summaryTexts?: Map<string, string>,
+        starredIds?: Set<string>,
     ) {
         const label = session.title || session.id.substring(0, 8);
         super(label, vscode.TreeItemCollapsibleState.None);
@@ -227,6 +256,7 @@ export class SessionItem extends vscode.TreeItem {
         const rel = relativeTime(session.lastModified);
         const turns = session.messageCount;
         const hasSummary = summarizedIds?.has(session.id) ?? false;
+        const isStarred = starredIds?.has(session.id) ?? false;
 
         if (session.stale) {
             // Stale: local remnant not shown by Antigravity
@@ -245,8 +275,9 @@ export class SessionItem extends vscode.TreeItem {
             ].join('\n'));
         } else {
             // Normal conversation
+            const starBadge = isStarred ? '⭐ ' : '';
             const summaryBadge = hasSummary ? ' ✨' : '';
-            this.description = (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
+            this.description = starBadge + (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
 
             // Markdown tooltip with metadata
             // Tooltip: summary-only when available, metadata fallback otherwise
@@ -288,7 +319,7 @@ export class SessionItem extends vscode.TreeItem {
             }
         }
 
-        this.contextValue = session.stale ? 'sessionStale' : 'session';
+        this.contextValue = session.stale ? 'sessionStale' : isStarred ? 'sessionStarred' : 'session';
 
         this.command = {
             command: 'convManager.openSession',

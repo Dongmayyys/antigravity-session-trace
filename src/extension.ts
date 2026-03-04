@@ -20,6 +20,7 @@ const WORKSPACE_CACHE_KEY = 'workspaceCache';
 const TITLE_CACHE_KEY = 'titleCache';
 const MSG_COUNT_CACHE_KEY = 'messageCountCache';
 const SORT_CACHE_KEY = 'sortBy';
+const STARRED_CACHE_KEY = 'starredIds';
 
 /** Auto-summarize state */
 let autoSummarizeRunning = false;
@@ -46,6 +47,10 @@ export function activate(context: vscode.ExtensionContext) {
     treeProvider.summaryTexts = new Map(
         Object.entries(summaryCache).map(([id, entry]) => [id, entry.text]),
     );
+
+    // Load starred conversation IDs from globalState
+    const starredArr: string[] = context.globalState.get(STARRED_CACHE_KEY, []);
+    treeProvider.starredIds = new Set(starredArr);
 
     // Register native Tree View for the sidebar
     const treeView = vscode.window.createTreeView('convManager.sessions', {
@@ -185,29 +190,63 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('convManager.filterWorkspace', async () => {
             const workspaces = treeProvider.getUniqueWorkspaces();
             const current = treeProvider.filterWorkspace;
-            const items: (vscode.QuickPickItem & { workspace: string | null })[] = [
+            const starredOnly = treeProvider.showStarredOnly;
+
+            interface FilterItem extends vscode.QuickPickItem {
+                workspace: string | null;
+                starred?: boolean;
+            }
+
+            const items: FilterItem[] = [
                 {
                     label: '$(globe) All Workspaces',
-                    description: current === null ? '(current)' : '',
+                    description: current === null && !starredOnly ? '(current)' : '',
                     workspace: null,
                 },
                 {
+                    label: '$(star-full) Starred Only',
+                    description: starredOnly ? '(current)' : '',
+                    detail: `${treeProvider.starredIds.size} starred`,
+                    workspace: null,
+                    starred: true,
+                },
+                {
                     label: '$(question) (no workspace)',
-                    description: current === '' ? '(current)' : '',
+                    description: current === '' && !starredOnly ? '(current)' : '',
                     workspace: '',
                 },
                 ...workspaces.map(ws => ({
                     label: `$(folder) ${ws}`,
-                    description: current === ws ? '(current)' : '',
+                    description: current === ws && !starredOnly ? '(current)' : '',
                     workspace: ws,
                 })),
             ];
             const picked = await vscode.window.showQuickPick(items, {
-                title: 'Filter by Workspace',
+                title: 'Filter Conversations',
             });
             if (picked) {
-                treeProvider.setFilter(picked.workspace);
+                if (picked.starred) {
+                    treeProvider.setShowStarredOnly(true);
+                } else {
+                    treeProvider.setFilter(picked.workspace);
+                }
             }
+        }),
+
+        vscode.commands.registerCommand('convManager.star', (item?: any) => {
+            const session: ConversationInfo | undefined = item?.session;
+            if (!session) { return; }
+            treeProvider.starredIds.add(session.id);
+            context.globalState.update(STARRED_CACHE_KEY, [...treeProvider.starredIds]);
+            treeProvider.refresh();
+        }),
+
+        vscode.commands.registerCommand('convManager.unstar', (item?: any) => {
+            const session: ConversationInfo | undefined = item?.session;
+            if (!session) { return; }
+            treeProvider.starredIds.delete(session.id);
+            context.globalState.update(STARRED_CACHE_KEY, [...treeProvider.starredIds]);
+            treeProvider.refresh();
         }),
 
         vscode.commands.registerCommand('convManager.summarize', async (item?: any) => {
@@ -371,12 +410,14 @@ export function activate(context: vscode.ExtensionContext) {
                         delete titleCacheData[id];
                         delete msgCache[id];
                         delete sumCache[id];
+                        treeProvider.starredIds.delete(id);
                     }
 
                     await context.globalState.update(WORKSPACE_CACHE_KEY, wsCache);
                     await context.globalState.update(TITLE_CACHE_KEY, titleCacheData);
                     await context.globalState.update(MSG_COUNT_CACHE_KEY, msgCache);
                     await context.globalState.update('summaryCache', sumCache);
+                    await context.globalState.update(STARRED_CACHE_KEY, [...treeProvider.starredIds]);
 
                     // Update in-memory conversation list (remove stale) and refresh tree
                     const remaining = treeProvider.conversations.filter(c => !staleIds.has(c.id));
