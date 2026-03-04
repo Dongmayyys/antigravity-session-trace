@@ -18,6 +18,7 @@
 
 import { execSync } from 'child_process';
 import * as https from 'https';
+import { log } from './logger';
 
 // ====================== Types ======================
 
@@ -43,7 +44,7 @@ export interface ConversationMessage {
 // ====================== Process Detection ======================
 
 const PROCESS_NAME = 'language_server_windows_x64.exe';
-const REQUEST_TIMEOUT = 10000;
+const REQUEST_TIMEOUT = 30000;
 
 /**
  * Run a PowerShell command and return stdout.
@@ -384,16 +385,24 @@ export class AntigravityClient {
     async getConversation(cascadeId: string): Promise<ConversationMessage[] | null> {
         for (const conn of this.connections) {
             try {
+                // Use GetCascadeTrajectorySteps for fuller retrieval
+                // (GetCascadeTrajectory truncates steps for large conversations)
+                // NOTE: Large conversations may still be truncated — see LEARNINGS.md
                 const result = await apiRequest(
                     conn.port, conn.csrfToken,
-                    'GetCascadeTrajectory', { cascadeId }
+                    'GetCascadeTrajectorySteps',
+                    { cascadeId, startIndex: 0, endIndex: 10000 },
                 );
-                const steps = result.trajectory?.steps || [];
-                return extractMessages(steps);
-            } catch {
-                // Try next connection
+                const steps = result.steps || [];
+                const messages = extractMessages(steps);
+                log(`getConversation ${cascadeId.slice(0, 8)}: ${steps.length} steps → ${messages.length} msgs`);
+                return messages;
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : String(e);
+                log(`getConversation ${cascadeId.slice(0, 8)} failed on port ${conn.port}: ${msg}`);
             }
         }
+        log(`getConversation ${cascadeId.slice(0, 8)}: all connections failed`);
         return null;
     }
 

@@ -7,6 +7,7 @@ import { AntigravityClient, ConversationMessage } from './apiClient';
 import { ConversationInfo } from './types';
 import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection, SummaryEntry } from './aiSummarizer';
 import { StatsPanel, AiConfigSnapshot, StatsPanelCallbacks } from './views/statsPanel';
+import { log } from './logger';
 
 // Shared client instance (reused across refreshes)
 let apiClient: AntigravityClient | undefined;
@@ -603,7 +604,7 @@ function invalidateStaleSummaries(
             treeProvider.summarizedIds.delete(conv.id);
             treeProvider.summaryTexts.delete(conv.id);
             changed = true;
-            console.log(`[ConvManager] Summary invalidated: ${conv.title || conv.id.slice(0, 8)} (+${delta} msgs)`);
+            log(`Summary invalidated: ${conv.title || conv.id.slice(0, 8)} (+${delta} msgs)`);
         }
     }
 
@@ -737,7 +738,7 @@ async function tryAutoSummarize(
             } catch (e: unknown) {
                 fail++;
                 const msg = e instanceof Error ? e.message : String(e);
-                console.warn(`[AutoSummarize] ${conv.id.slice(0, 8)} failed: ${msg}`);
+                log(`[AutoSummarize] ${conv.id.slice(0, 8)} failed: ${msg}`);
 
                 // Back off on error (5s)
                 if (i < candidates.length - 1) {
