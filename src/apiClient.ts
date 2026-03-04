@@ -510,6 +510,28 @@ export class AntigravityClient {
         return null;
     }
 
+    /**
+     * Fetch token usage metadata for a conversation.
+     * Each item in the returned array represents a single LLM API call
+     * with token counts, model info, and timing data.
+     *
+     * @returns Array of raw metadata items, or empty array on failure
+     */
+    async getTrajectoryMetadata(cascadeId: string): Promise<any[]> {
+        for (const conn of this.connections) {
+            try {
+                const result = await apiRequest(
+                    conn.port, conn.csrfToken,
+                    'GetCascadeTrajectoryGeneratorMetadata', { cascadeId },
+                );
+                return result.generatorMetadata || [];
+            } catch {
+                // Try next connection
+            }
+        }
+        return [];
+    }
+
     /** Reset all connections. */
     disconnect(): void {
         this.connections = [];

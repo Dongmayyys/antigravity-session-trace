@@ -92,6 +92,12 @@
                 "title": "Unstar Conversation",
                 "icon": "$(star-full)",
                 "category": "Conversations"
+            },
+            {
+                "command": "convManager.showTokenDashboard",
+                "title": "Token Usage Dashboard",
+                "icon": "$(graph)",
+                "category": "Conversations"
             }
         ],
         "menus": {
@@ -115,6 +121,11 @@
                     "command": "convManager.refresh",
                     "when": "view == convManager.sessions",
                     "group": "navigation@4"
+                },
+                {
+                    "command": "convManager.showTokenDashboard",
+                    "when": "view == convManager.sessions",
+                    "group": "navigation@5"
                 }
             ],
             "view/item/context": [

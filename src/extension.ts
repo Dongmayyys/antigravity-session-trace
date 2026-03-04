@@ -7,6 +7,7 @@ import { AntigravityClient, ConversationMessage } from './apiClient';
 import { ConversationInfo } from './types';
 import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection, SummaryEntry } from './aiSummarizer';
 import { StatsPanel, AiConfigSnapshot, StatsPanelCallbacks } from './views/statsPanel';
+import { TokenDashboard, aggregateTokenData } from './views/tokenDashboard';
 import { log } from './logger';
 
 // Shared client instance (reused across refreshes)
@@ -468,6 +469,46 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showWarningMessage(`API Key 已保存，但连接测试失败: ${msg}`);
                 }
             });
+        }),
+
+        vscode.commands.registerCommand('convManager.showTokenDashboard', async () => {
+            const dashboard = TokenDashboard.create();
+
+            // Ensure API connection
+            if (!apiClient) {
+                apiClient = new AntigravityClient();
+                await apiClient.connect();
+            }
+            if (!apiClient.isConnected) {
+                vscode.window.showErrorMessage('Cannot connect to Antigravity API. Make sure Antigravity is running.');
+                return;
+            }
+
+            // Fetch metadata for all non-stale conversations
+            const conversations = treeProvider.conversations.filter(c => !c.stale);
+            const allMetadata: any[][] = [];
+            const BATCH_SIZE = 5;
+
+            for (let i = 0; i < conversations.length; i += BATCH_SIZE) {
+                const batch = conversations.slice(i, i + BATCH_SIZE);
+                const results = await Promise.allSettled(
+                    batch.map(c => apiClient!.getTrajectoryMetadata(c.id)),
+                );
+
+                for (const r of results) {
+                    if (r.status === 'fulfilled' && r.value.length > 0) {
+                        allMetadata.push(r.value);
+                    }
+                }
+
+                dashboard.sendProgress(Math.min(i + BATCH_SIZE, conversations.length), conversations.length);
+            }
+
+            // Aggregate and render
+            const data = aggregateTokenData(allMetadata);
+            dashboard.sendData(data);
+
+            log(`Token Dashboard: ${data.conversationCount} convs, ${data.totalCalls} API calls, ${data.totalInput + data.totalOutput} tokens`);
         }),
     );
 }
