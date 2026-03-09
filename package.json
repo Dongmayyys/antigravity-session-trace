@@ -98,10 +98,32 @@
                 "title": "Token Usage Dashboard",
                 "icon": "$(graph)",
                 "category": "Conversations"
+            },
+            {
+                "command": "convManager.viewRecent",
+                "title": "Recent Conversations",
+                "icon": "$(clock)",
+                "category": "Conversations"
+            },
+            {
+                "command": "convManager.viewSessions",
+                "title": "All Sessions",
+                "icon": "$(list-unordered)",
+                "category": "Conversations"
             }
         ],
         "menus": {
             "view/title": [
+                {
+                    "command": "convManager.viewRecent",
+                    "when": "view == convManager.sessions && convManager.viewMode != 'recent'",
+                    "group": "navigation@0"
+                },
+                {
+                    "command": "convManager.viewSessions",
+                    "when": "view == convManager.sessions && convManager.viewMode == 'recent'",
+                    "group": "navigation@0"
+                },
                 {
                     "command": "convManager.search",
                     "when": "view == convManager.sessions",
@@ -114,7 +136,7 @@
                 },
                 {
                     "command": "convManager.sortBy",
-                    "when": "view == convManager.sessions",
+                    "when": "view == convManager.sessions && convManager.viewMode != 'recent'",
                     "group": "navigation@3"
                 },
                 {

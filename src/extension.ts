@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { SessionTreeProvider, SortBy, relativeTime } from './views/sidebarViewProvider';
+import { SessionTreeProvider, SortBy, ViewMode, relativeTime } from './views/sidebarViewProvider';
 import { ContentPanel } from './views/contentPanel';
 import { scanBrainDirectory, getAntigravityRoot } from './brainScanner';
 import { AntigravityClient, ConversationMessage } from './apiClient';
@@ -22,6 +22,7 @@ const TITLE_CACHE_KEY = 'titleCache';
 const MSG_COUNT_CACHE_KEY = 'messageCountCache';
 const SORT_CACHE_KEY = 'sortBy';
 const STARRED_CACHE_KEY = 'starredIds';
+const VIEW_MODE_CACHE_KEY = 'viewMode';
 
 /** Auto-summarize state */
 let autoSummarizeRunning = false;
@@ -53,6 +54,11 @@ export function activate(context: vscode.ExtensionContext) {
     const starredArr: string[] = context.globalState.get(STARRED_CACHE_KEY, []);
     treeProvider.starredIds = new Set(starredArr);
 
+    // Restore persisted view mode + set context key for menu when-clauses
+    const savedViewMode = context.globalState.get<ViewMode>(VIEW_MODE_CACHE_KEY) || 'sessions';
+    treeProvider.setViewMode(savedViewMode);
+    vscode.commands.executeCommand('setContext', 'convManager.viewMode', savedViewMode);
+
     // Register native Tree View for the sidebar
     const treeView = vscode.window.createTreeView('convManager.sessions', {
         treeDataProvider: treeProvider,
@@ -75,6 +81,18 @@ export function activate(context: vscode.ExtensionContext) {
             loadConversations(context, treeProvider, treeView).then(() => {
                 invalidateStaleSummaries(context, treeProvider);
             });
+        }),
+
+        vscode.commands.registerCommand('convManager.viewRecent', () => {
+            treeProvider.setViewMode('recent');
+            context.globalState.update(VIEW_MODE_CACHE_KEY, 'recent');
+            vscode.commands.executeCommand('setContext', 'convManager.viewMode', 'recent');
+        }),
+
+        vscode.commands.registerCommand('convManager.viewSessions', () => {
+            treeProvider.setViewMode('sessions');
+            context.globalState.update(VIEW_MODE_CACHE_KEY, 'sessions');
+            vscode.commands.executeCommand('setContext', 'convManager.viewMode', 'sessions');
         }),
 
         vscode.commands.registerCommand('convManager.openSession', (session?: ConversationInfo) => {

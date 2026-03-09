@@ -14,6 +14,7 @@
 import * as vscode from 'vscode';
 import { ConversationInfo } from '../types';
 
+export type ViewMode = 'sessions' | 'recent';
 export type SortBy = 'date' | 'created' | 'name';
 
 type TreeNode = CategoryItem | SessionItem | InfoItem;
@@ -23,6 +24,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     private _conversations: ConversationInfo[] = [];
+    private _viewMode: ViewMode = 'sessions';
     private _sortBy: SortBy = 'date';
     private _filterWorkspace: string | null = null; // null = show all
     private _searchQuery = '';
@@ -37,6 +39,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     /** IDs of starred conversations (set by extension.ts, persisted in globalState). */
     starredIds: Set<string> = new Set();
 
+    get viewMode(): ViewMode { return this._viewMode; }
     get sortBy(): SortBy { return this._sortBy; }
     get filterWorkspace(): string | null { return this._filterWorkspace; }
     get showStarredOnly(): boolean { return this._showStarredOnly; }
@@ -49,6 +52,11 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
      */
     setConversations(conversations: ConversationInfo[]): void {
         this._conversations = conversations;
+        this._onDidChangeTreeData.fire();
+    }
+
+    setViewMode(mode: ViewMode): void {
+        this._viewMode = mode;
         this._onDidChangeTreeData.fire();
     }
 
@@ -93,6 +101,9 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
     async getChildren(element?: TreeNode): Promise<TreeNode[]> {
         if (!element) {
+            if (this._viewMode === 'recent') {
+                return this._getRecentChildren();
+            }
             return this._getRootChildren();
         }
         if (element instanceof CategoryItem) {
@@ -169,6 +180,30 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             const icon = key === '(no workspace)' ? 'globe' : 'folder';
             return new CategoryItem(key, sessions, icon);
         });
+    }
+
+    /**
+     * Recent mode: flat list sorted by lastModified DESC.
+     * No workspace grouping, stale excluded.
+     */
+    private _getRecentChildren(): TreeNode[] {
+        let filtered = this._conversations.filter(c => !c.stale);
+
+        // Starred filter still applies in recent mode
+        if (this._showStarredOnly) {
+            filtered = filtered.filter(c => this.starredIds.has(c.id));
+        }
+
+        // Always sort by lastModified DESC in recent mode
+        const sorted = [...filtered].sort((a, b) => b.lastModified - a.lastModified);
+
+        if (sorted.length === 0) {
+            return [new InfoItem('No recent conversations', '', 'info')];
+        }
+
+        return sorted.map(
+            s => new SessionItem(s, this.summarizedIds, this.summaryTexts, this.starredIds),
+        );
     }
 
     private _applySort(conversations: ConversationInfo[]): void {
