@@ -8,6 +8,7 @@ import { ConversationInfo } from './types';
 import { summarize, getSummary, setSummary, setApiKey, getApiKey, testConnection, SummaryEntry } from './aiSummarizer';
 import { StatsPanel, AiConfigSnapshot, StatsPanelCallbacks } from './views/statsPanel';
 import { TokenDashboard, aggregateTokenData } from './views/tokenDashboard';
+import { ActiveTokenTracker } from './activeTokenTracker';
 import { log } from './logger';
 
 // Shared client instance (reused across refreshes)
@@ -67,10 +68,19 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(treeView);
 
+    // Active conversation token tracker (status bar)
+    const tokenTracker = new ActiveTokenTracker(
+        context,
+        () => apiClient,
+        () => treeProvider.conversations,
+    );
+    context.subscriptions.push(tokenTracker);
+
     // Scan and populate on activation, then invalidate stale summaries, then auto-summarize
     loadConversations(context, treeProvider, treeView).then(() => {
         invalidateStaleSummaries(context, treeProvider);
         tryAutoSummarize(context, treeProvider);
+        tokenTracker.start();
     });
 
     // Commands
@@ -94,6 +104,11 @@ export function activate(context: vscode.ExtensionContext) {
             treeProvider.setViewMode('sessions');
             context.globalState.update(VIEW_MODE_CACHE_KEY, 'sessions');
             vscode.commands.executeCommand('setContext', 'convManager.viewMode', 'sessions');
+        }),
+
+        vscode.commands.registerCommand('convManager.revealActive', () => {
+            // Reveal the active conversation in the tree view (placeholder — just open sidebar)
+            vscode.commands.executeCommand('convManager.sessions.focus');
         }),
 
         vscode.commands.registerCommand('convManager.openSession', (session?: ConversationInfo) => {
