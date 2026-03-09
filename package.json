@@ -243,6 +243,17 @@
                     "type": "number",
                     "default": 10,
                     "description": "Message increase threshold to invalidate an existing summary. When a conversation gains this many new messages since its last summary, the summary is cleared for re-generation."
+                },
+                "convManager.archiveKeywords": {
+                    "order": 9,
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "@[/close]"
+                    ],
+                    "markdownDescription": "Keywords to detect archived/completed conversations. When any user message contains one of these strings, the conversation is marked as archived (`📦`). Set to an empty array to disable."
                 }
             }
         }

@@ -23,6 +23,7 @@ const MSG_COUNT_CACHE_KEY = 'messageCountCache';
 const SORT_CACHE_KEY = 'sortBy';
 const STARRED_CACHE_KEY = 'starredIds';
 const VIEW_MODE_CACHE_KEY = 'viewMode';
+const ARCHIVED_CACHE_KEY = 'archivedIds';
 
 /** Auto-summarize state */
 let autoSummarizeRunning = false;
@@ -549,9 +550,12 @@ async function loadConversations(
     const cache: Record<string, string | null> = context.globalState.get(WORKSPACE_CACHE_KEY, {});
     const titleCache: Record<string, string> = context.globalState.get(TITLE_CACHE_KEY, {});
     const msgCountCache: Record<string, number> = context.globalState.get(MSG_COUNT_CACHE_KEY, {});
+    const archivedCache: string[] = context.globalState.get(ARCHIVED_CACHE_KEY, []);
+    const archivedSet = new Set(archivedCache);
     let cacheUpdated = false;
     let titleCacheUpdated = false;
     let msgCountCacheUpdated = false;
+    let archivedCacheUpdated = false;
 
     try {
         // Phase 1: Local scan (instant, works offline)
@@ -567,6 +571,9 @@ async function loadConversations(
             }
             if (msgCountCache[conv.id] !== undefined) {
                 conv.messageCount = msgCountCache[conv.id];
+            }
+            if (archivedSet.has(conv.id)) {
+                conv.archived = true;
             }
         }
         treeProvider.setConversations(conversations);
@@ -608,6 +615,7 @@ async function loadConversations(
 
                 // Phase 3: Deep enrichment via GetCascadeTrajectory
                 // Fetch conversations missing workspace, createdAt, or messageCount
+                const archiveKeywords: string[] = vscode.workspace.getConfiguration('convManager').get('archiveKeywords', ['@[/close]']);
                 const needsEnrichment = conversations.filter(
                     c => (!c.workspace && !(c.id in cache))
                         || !c.createdAt
@@ -619,7 +627,7 @@ async function loadConversations(
                     for (let i = 0; i < needsEnrichment.length; i += BATCH_SIZE) {
                         const batch = needsEnrichment.slice(i, i + BATCH_SIZE);
                         const results = await Promise.allSettled(
-                            batch.map(c => apiClient!.getConversationDetails(c.id)),
+                            batch.map(c => apiClient!.getConversationDetails(c.id, archiveKeywords)),
                         );
 
                         let changed = false;
@@ -640,6 +648,12 @@ async function loadConversations(
                                     batch[j].messageCount = r.value.messageCount;
                                     msgCountCache[batch[j].id] = r.value.messageCount;
                                     msgCountCacheUpdated = true;
+                                    changed = true;
+                                }
+                                if (r.value.archived && !archivedSet.has(batch[j].id)) {
+                                    batch[j].archived = true;
+                                    archivedSet.add(batch[j].id);
+                                    archivedCacheUpdated = true;
                                     changed = true;
                                 }
                             }
@@ -668,6 +682,9 @@ async function loadConversations(
     }
     if (msgCountCacheUpdated) {
         context.globalState.update(MSG_COUNT_CACHE_KEY, msgCountCache);
+    }
+    if (archivedCacheUpdated) {
+        context.globalState.update(ARCHIVED_CACHE_KEY, [...archivedSet]);
     }
 }
 

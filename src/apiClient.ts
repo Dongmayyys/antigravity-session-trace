@@ -470,12 +470,14 @@ export class AntigravityClient {
      *
      * Used for deep enrichment when GetAllCascadeTrajectories didn't cover this conversation.
      *
-     * @returns Object with workspace, createdAt, and messageCount, or null if API failed entirely
+     * @param archiveKeywords - If provided, scan user messages for these keywords to detect archived conversations.
+     * @returns Object with workspace, createdAt, messageCount, and archived flag, or null if API failed entirely
      */
-    async getConversationDetails(cascadeId: string): Promise<{
+    async getConversationDetails(cascadeId: string, archiveKeywords?: string[]): Promise<{
         workspace: string | null;
         createdAt: number | null;
         messageCount: number;
+        archived: boolean;
     } | null> {
         for (const conn of this.connections) {
             try {
@@ -500,9 +502,18 @@ export class AntigravityClient {
 
                 // Count messages from steps (zero extra cost — data already in response)
                 const steps = result.trajectory?.steps || [];
-                const messageCount = extractMessages(steps).length;
+                const messages = extractMessages(steps);
+                const messageCount = messages.length;
 
-                return { workspace, createdAt, messageCount };
+                // Detect archive keywords in user messages
+                let archived = false;
+                if (archiveKeywords && archiveKeywords.length > 0) {
+                    archived = messages.some(m =>
+                        m.role === 'user' && archiveKeywords.some(kw => m.text.includes(kw)),
+                    );
+                }
+
+                return { workspace, createdAt, messageCount, archived };
             } catch {
                 // Try next connection
             }

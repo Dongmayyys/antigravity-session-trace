@@ -17,4 +17,6 @@ export interface ConversationInfo {
      * Only set when the API is connected; unset when offline to avoid false positives.
      */
     stale?: boolean;
+    /** True when conversation messages contain an archive keyword (e.g. @[/close]). */
+    archived?: boolean;
 }

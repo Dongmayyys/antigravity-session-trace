@@ -311,8 +311,9 @@ export class SessionItem extends vscode.TreeItem {
         } else {
             // Normal conversation
             const starBadge = isStarred ? '⭐ ' : '';
+            const archiveBadge = session.archived ? '📦 ' : '';
             const summaryBadge = hasSummary ? ' ✨' : '';
-            this.description = starBadge + (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
+            this.description = starBadge + archiveBadge + (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
 
             // Markdown tooltip with metadata
             // Tooltip: summary-only when available, metadata fallback otherwise
