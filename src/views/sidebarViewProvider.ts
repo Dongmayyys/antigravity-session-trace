@@ -29,6 +29,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     private _filterWorkspace: string | null = null; // null = show all
     private _searchQuery = '';
     private _showStarredOnly = false;
+    private _hideArchived = false;
 
     /** IDs of conversations that have AI summaries (set by extension.ts). */
     summarizedIds: Set<string> = new Set();
@@ -43,6 +44,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     get sortBy(): SortBy { return this._sortBy; }
     get filterWorkspace(): string | null { return this._filterWorkspace; }
     get showStarredOnly(): boolean { return this._showStarredOnly; }
+    get hideArchived(): boolean { return this._hideArchived; }
     get searchQuery(): string { return this._searchQuery; }
     get conversations(): readonly ConversationInfo[] { return this._conversations; }
 
@@ -68,12 +70,23 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     setFilter(workspace: string | null): void {
         this._filterWorkspace = workspace;
         this._showStarredOnly = false;
+        this._hideArchived = false;
         this._onDidChangeTreeData.fire();
     }
 
     setShowStarredOnly(show: boolean): void {
         this._showStarredOnly = show;
+        this._hideArchived = false;
         if (show) { this._filterWorkspace = null; }
+        this._onDidChangeTreeData.fire();
+    }
+
+    setHideArchived(hide: boolean): void {
+        this._hideArchived = hide;
+        if (hide) {
+            this._filterWorkspace = null;
+            this._showStarredOnly = false;
+        }
         this._onDidChangeTreeData.fire();
     }
 
@@ -130,6 +143,11 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         // Starred filter
         if (this._showStarredOnly) {
             filtered = filtered.filter(c => this.starredIds.has(c.id));
+        }
+
+        // Archived filter
+        if (this._hideArchived) {
+            filtered = filtered.filter(c => !c.archived);
         }
 
         // Workspace filter
@@ -192,6 +210,11 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         // Starred filter still applies in recent mode
         if (this._showStarredOnly) {
             filtered = filtered.filter(c => this.starredIds.has(c.id));
+        }
+
+        // Archived filter
+        if (this._hideArchived) {
+            filtered = filtered.filter(c => !c.archived);
         }
 
         // Always sort by lastModified DESC in recent mode

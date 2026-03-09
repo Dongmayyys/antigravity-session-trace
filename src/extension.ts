@@ -211,16 +211,19 @@ export function activate(context: vscode.ExtensionContext) {
             const workspaces = treeProvider.getUniqueWorkspaces();
             const current = treeProvider.filterWorkspace;
             const starredOnly = treeProvider.showStarredOnly;
+            const hidingArchived = treeProvider.hideArchived;
+            const archivedCount = treeProvider.conversations.filter(c => c.archived).length;
 
             interface FilterItem extends vscode.QuickPickItem {
                 workspace: string | null;
                 starred?: boolean;
+                hideArchived?: boolean;
             }
 
             const items: FilterItem[] = [
                 {
                     label: '$(globe) All Workspaces',
-                    description: current === null && !starredOnly ? '(current)' : '',
+                    description: current === null && !starredOnly && !hidingArchived ? '(current)' : '',
                     workspace: null,
                 },
                 {
@@ -231,13 +234,20 @@ export function activate(context: vscode.ExtensionContext) {
                     starred: true,
                 },
                 {
+                    label: '$(archive) Active Only',
+                    description: hidingArchived ? '(current)' : '',
+                    detail: `${archivedCount} archived hidden`,
+                    workspace: null,
+                    hideArchived: true,
+                },
+                {
                     label: '$(question) (no workspace)',
-                    description: current === '' && !starredOnly ? '(current)' : '',
+                    description: current === '' && !starredOnly && !hidingArchived ? '(current)' : '',
                     workspace: '',
                 },
                 ...workspaces.map(ws => ({
                     label: `$(folder) ${ws}`,
-                    description: current === ws && !starredOnly ? '(current)' : '',
+                    description: current === ws && !starredOnly && !hidingArchived ? '(current)' : '',
                     workspace: ws,
                 })),
             ];
@@ -247,6 +257,8 @@ export function activate(context: vscode.ExtensionContext) {
             if (picked) {
                 if (picked.starred) {
                     treeProvider.setShowStarredOnly(true);
+                } else if (picked.hideArchived) {
+                    treeProvider.setHideArchived(true);
                 } else {
                     treeProvider.setFilter(picked.workspace);
                 }
