@@ -1,9 +1,13 @@
 {
-    "name": "antigravity-conv-manager",
-    "displayName": "Antigravity Conversation Manager",
+    "name": "antigravity-session-trace",
+    "displayName": "Antigravity Session Trace",
     "description": "Browse, search, tag, and manage your Antigravity conversations.",
     "version": "0.1.0",
-    "publisher": "TODO",
+    "publisher": "Dongmayyys",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Dongmayyys/antigravity-session-trace"
+    },
     "engines": {
         "vscode": "^1.96.0"
     },
