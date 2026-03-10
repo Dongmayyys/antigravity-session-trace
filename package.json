@@ -265,7 +265,7 @@
                 "convManager.ai.staleThreshold": {
                     "order": 8,
                     "type": "number",
-                    "default": 10,
+                    "default": 5,
                     "description": "%config.ai.staleThreshold.description%"
                 },
                 "convManager.archiveKeywords": {
@@ -274,9 +274,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [
-                        "@[/close]"
-                    ],
+                    "default": [],
                     "markdownDescription": "%config.archiveKeywords.markdownDescription%"
                 }
             }
