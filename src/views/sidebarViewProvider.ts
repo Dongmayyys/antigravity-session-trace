@@ -284,7 +284,7 @@ class CategoryItem extends vscode.TreeItem {
         public readonly sessions: ConversationInfo[],
         icon: string = 'folder',
     ) {
-        super(`${workspaceKey} (${sessions.length})`, vscode.TreeItemCollapsibleState.Expanded);
+        super(`${workspaceKey} (${sessions.length})`, vscode.TreeItemCollapsibleState.Collapsed);
         this.id = `category:${workspaceKey}`;
         this.iconPath = new vscode.ThemeIcon(icon);
         this.contextValue = 'category';
