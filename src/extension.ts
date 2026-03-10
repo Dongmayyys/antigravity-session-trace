@@ -303,6 +303,39 @@ export function activate(context: vscode.ExtensionContext) {
             treeProvider.refresh();
         }),
 
+        vscode.commands.registerCommand('convManager.copyId', (item?: any) => {
+            const session: ConversationInfo | undefined = item?.session;
+            if (!session) { return; }
+            vscode.env.clipboard.writeText(session.id);
+            vscode.window.showInformationMessage(`Copied: ${session.id}`);
+        }),
+
+        vscode.commands.registerCommand('convManager.revealInExplorer', (item?: any) => {
+            const session: ConversationInfo | undefined = item?.session;
+            if (!session) { return; }
+            const brainPath = path.join(getAntigravityRoot(), 'brain', session.id);
+            vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(brainPath));
+        }),
+
+        vscode.commands.registerCommand('convManager.toggleArchive', (item?: any) => {
+            const session: ConversationInfo | undefined = item?.session;
+            if (!session) { return; }
+
+            const archivedIds: string[] = context.globalState.get(ARCHIVED_CACHE_KEY, []);
+            const archivedSet = new Set(archivedIds);
+
+            if (archivedSet.has(session.id)) {
+                archivedSet.delete(session.id);
+                session.archived = false;
+            } else {
+                archivedSet.add(session.id);
+                session.archived = true;
+            }
+
+            context.globalState.update(ARCHIVED_CACHE_KEY, [...archivedSet]);
+            treeProvider.refresh();
+        }),
+
         vscode.commands.registerCommand('convManager.summarize', async (item?: any) => {
             // Accept SessionItem from tree view context menu
             const session: ConversationInfo | undefined = item?.session;
