@@ -18,7 +18,7 @@
     "commands.copyId": "Copy Conversation ID",
     "commands.revealInExplorer": "Reveal in File Explorer",
     "commands.toggleArchive": "Toggle Archive",
-    "config.title": "Conversation Manager — AI",
+    "config.title": "Session Trace — AI",
     "config.ai.endpoint.markdownDescription": "AI API base URL (e.g. `https://api.openai.com/v1` or `https://generativelanguage.googleapis.com/v1beta`)\n\n> 🔐 **API Key** is stored via OS-level secure storage. Set it via Command Palette: `Ctrl+Shift+P` → `Conversations: Set AI API Key`",
     "config.ai.format.description": "API format: openai (chat/completions + Bearer) or gemini (generateContent + ?key=)",
     "config.ai.model.description": "Model name (e.g. gpt-4o, gemini-2.0-flash)",

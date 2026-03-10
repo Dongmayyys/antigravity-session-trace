@@ -18,7 +18,7 @@
     "commands.copyId": "复制会话 ID",
     "commands.revealInExplorer": "在文件管理器中显示",
     "commands.toggleArchive": "切换归档",
-    "config.title": "会话管理 — AI",
+    "config.title": "Session Trace — AI",
     "config.ai.endpoint.markdownDescription": "AI API 地址（如 `https://api.openai.com/v1` 或 `https://generativelanguage.googleapis.com/v1beta`）\n\n> 🔐 **API Key** 通过 OS 级安全存储保存，请通过命令面板设置：`Ctrl+Shift+P` → `会话: 设置 AI API Key`",
     "config.ai.format.description": "API 格式：openai（chat/completions + Bearer）或 gemini（generateContent + ?key=）",
     "config.ai.model.description": "模型名称（如 gpt-4o、gemini-2.0-flash）",
