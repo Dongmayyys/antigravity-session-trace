@@ -328,7 +328,11 @@ export class SessionItem extends vscode.TreeItem {
         summaryTexts?: Map<string, string>,
         starredIds?: Set<string>,
     ) {
-        const label = session.title || session.id.substring(0, 8);
+        const MAX_TITLE_LEN = 25;
+        const rawLabel = session.title || session.id.substring(0, 8);
+        const label = rawLabel.length > MAX_TITLE_LEN
+            ? rawLabel.substring(0, MAX_TITLE_LEN) + '…'
+            : rawLabel;
         super(label, vscode.TreeItemCollapsibleState.None);
 
         this.id = `session:${session.id}`;
@@ -346,7 +350,7 @@ export class SessionItem extends vscode.TreeItem {
                 new vscode.ThemeColor('disabledForeground'),
             );
             this.tooltip = new vscode.MarkdownString([
-                `**${label}**`,
+                `**${rawLabel}**`,
                 '',
                 '⚠️ *Stale — exists locally but not shown in Antigravity*',
                 '',
@@ -355,16 +359,13 @@ export class SessionItem extends vscode.TreeItem {
             ].join('\n'));
         } else {
             // Normal conversation
-            const starBadge = isStarred ? '⭐ ' : '';
-            const archiveBadge = session.archived ? '📦 ' : '';
-            const summaryBadge = hasSummary ? ' ✨' : '';
-            this.description = starBadge + archiveBadge + (turns ? `${turns} msgs · ${rel}` : rel) + summaryBadge;
+            this.description = turns ? `${turns} msgs · ${rel}` : rel;
 
             // Markdown tooltip with metadata
             // Tooltip: summary-only when available, metadata fallback otherwise
             const summaryText = summaryTexts?.get(session.id);
             if (summaryText) {
-                const metaParts: string[] = [`**${label}**`];
+                const metaParts: string[] = [`**${rawLabel}**`];
                 if (session.workspace) { metaParts.push(`📁 ${session.workspace}`); }
                 if (turns) { metaParts.push(`💬 ${turns}`); }
                 metaParts.push(rel);
@@ -375,7 +376,7 @@ export class SessionItem extends vscode.TreeItem {
                 this.tooltip = new vscode.MarkdownString(`${metaLine}\n\n---\n\n${preview}`);
             } else {
                 this.tooltip = new vscode.MarkdownString([
-                    `**${label}**`,
+                    `**${rawLabel}**`,
                     '',
                     `- **Workspace**: ${session.workspace || '(none)'}`,
                     `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
@@ -385,18 +386,13 @@ export class SessionItem extends vscode.TreeItem {
                 ].filter(Boolean).join('\n'));
             }
 
-            // Icon color coding by message count
-            if (turns !== undefined && turns > 0) {
-                this.iconPath = new vscode.ThemeIcon(
-                    turns > 100 ? 'comment-unresolved' : 'comment',
-                    turns > 100
-                        ? new vscode.ThemeColor('charts.red')
-                        : turns > 60
-                            ? new vscode.ThemeColor('charts.yellow')
-                            : undefined,
-                );
+            // Icon: status-based (starred > archived > normal)
+            if (isStarred) {
+                this.iconPath = new vscode.ThemeIcon('star-full', new vscode.ThemeColor('charts.yellow'));
+            } else if (session.archived) {
+                this.iconPath = new vscode.ThemeIcon('archive');
             } else {
-                this.iconPath = new vscode.ThemeIcon('comment');
+                this.iconPath = new vscode.ThemeIcon('comment-unresolved');
             }
         }
 
