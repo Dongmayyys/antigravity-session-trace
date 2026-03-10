@@ -173,7 +173,6 @@ export class ActiveTokenTracker implements vscode.Disposable {
     }
 
     private async _refreshTokens(convId: string): Promise<void> {
-        log(`[TokenTracker] _refreshTokens called for ${convId.substring(0, 8)}`);
         const client = this.getApiClient();
         if (!client || !client.isConnected) {
             log(`[TokenTracker] API not available, showing title only`);
@@ -186,27 +185,38 @@ export class ActiveTokenTracker implements vscode.Disposable {
         }
 
         try {
-            log(`[TokenTracker] fetching metadata for ${convId.substring(0, 8)}…`);
             const metadata = await client.getTrajectoryMetadata(convId);
             if (this._disposed || convId !== this._currentConvId) { return; }
 
             let totalInput = 0, totalOutput = 0;
+            let lastMainInput = 0;
             let maxInput = 0;
+            let mainCallCount = 0;
+            let lastMainIdx = -1;
 
-            for (const item of metadata) {
-                const usage = item.chatModel?.usage;
+            for (let i = 0; i < metadata.length; i++) {
+                const usage = metadata[i].chatModel?.usage;
                 if (!usage) { continue; }
                 const input = parseInt(usage.inputTokens || '0', 10);
                 const output = parseInt(usage.outputTokens || '0', 10);
                 totalInput += input;
                 totalOutput += output;
                 if (input > maxInput) { maxInput = input; }
+                // Main conversation calls have large input (full context history)
+                // Tool/planning calls are always < 5k; 10k threshold is safe
+                if (input > 10_000) {
+                    lastMainInput = input;
+                    mainCallCount++;
+                    lastMainIdx = i;
+                }
             }
 
             const totalTokens = totalInput + totalOutput;
-            const contextTokens = maxInput;
+            // Large conversations: use lastMainInput (filters tool calls)
+            // Small/new conversations: fall back to maxInput (main call is still the largest)
+            const contextTokens = lastMainInput > 0 ? lastMainInput : maxInput;
 
-            log(`[TokenTracker] ${convId.substring(0, 8)}: context=${contextTokens}, total=${totalTokens}, calls=${metadata.length}`);
+            log(`[TokenTracker] ${convId.substring(0, 8)}: context=${contextTokens}, total=${totalTokens}, calls=${metadata.length}, mainCalls=${mainCallCount}, lastMain=#${lastMainIdx}`);
 
             // Cache
             const entry: TokenCacheEntry = {
@@ -244,7 +254,7 @@ export class ActiveTokenTracker implements vscode.Disposable {
         this._statusItem.tooltip = new vscode.MarkdownString([
             `**${convTitle}**`,
             '',
-            `- Peak context: **${contextTokens.toLocaleString()}** tokens`,
+            `- Context (est.): **${contextTokens.toLocaleString()}** tokens`,
             `- Cumulative: ${totalTokens.toLocaleString()} tokens`,
             `- ${icon === '$(warning)' ? '⚠️ Context window is getting large!' : icon === '$(flame)' ? '🔥 High context usage — consider new window' : '✅ Normal'}`,
             '',
