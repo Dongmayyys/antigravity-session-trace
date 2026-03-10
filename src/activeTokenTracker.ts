@@ -11,7 +11,7 @@
  *   - Refreshed when the active conversation changes
  *
  * Display:
- *   - Status bar item: "$(pulse) 128k tokens · 会话标题"
+ *   - Status bar item: "$(pulse) 128k tokens · Session Title"
  *   - Click → reveal the conversation in the Tree View
  */
 
@@ -49,7 +49,7 @@ export class ActiveTokenTracker implements vscode.Disposable {
         this._statusItem = vscode.window.createStatusBarItem(
             vscode.StatusBarAlignment.Left, -100,
         );
-        this._statusItem.name = 'Active Conversation Tokens';
+        this._statusItem.name = vscode.l10n.t('Active Conversation Tokens');
         this._statusItem.command = 'convManager.revealActive';
 
         // Instantly infer current conversation from .pb file modification times
@@ -64,7 +64,7 @@ export class ActiveTokenTracker implements vscode.Disposable {
             } else {
                 // Different conversation or no cache — show placeholder, fetch later
                 this._statusItem.text = '$(pulse) …';
-                this._statusItem.tooltip = 'Loading token data…';
+                this._statusItem.tooltip = vscode.l10n.t('Loading token data…');
                 this._statusItem.show();
                 // Kick off refresh immediately (apiClient may not be ready yet, but it's async)
                 this._refreshTokens(latestConvId);
@@ -164,7 +164,7 @@ export class ActiveTokenTracker implements vscode.Disposable {
             this._updateStatusBar(cached.contextTokens, cached.totalTokens, convId);
         } else {
             this._statusItem.text = '$(pulse) …';
-            this._statusItem.tooltip = 'Loading token data…';
+            this._statusItem.tooltip = vscode.l10n.t('Loading token data…');
             this._statusItem.show();
         }
 
@@ -179,7 +179,7 @@ export class ActiveTokenTracker implements vscode.Disposable {
             // Still show the conversation title even without token data
             const convTitle = this._getTitle(convId);
             this._statusItem.text = `$(pulse) ${convTitle}`;
-            this._statusItem.tooltip = `${convTitle} — token data unavailable (API not connected)`;
+            this._statusItem.tooltip = vscode.l10n.t('{0} — token data unavailable (API not connected)', convTitle);
             this._statusItem.show();
             return;
         }
@@ -233,7 +233,7 @@ export class ActiveTokenTracker implements vscode.Disposable {
             // Show title without token data
             const convTitle = this._getTitle(convId);
             this._statusItem.text = `$(pulse) ${convTitle}`;
-            this._statusItem.tooltip = `${convTitle} — failed to load token data`;
+            this._statusItem.tooltip = vscode.l10n.t('{0} — failed to load token data', convTitle);
             this._statusItem.show();
         }
     }
@@ -254,11 +254,11 @@ export class ActiveTokenTracker implements vscode.Disposable {
         this._statusItem.tooltip = new vscode.MarkdownString([
             `**${convTitle}**`,
             '',
-            `- Context (est.): **${contextTokens.toLocaleString()}** tokens`,
-            `- Cumulative: ${totalTokens.toLocaleString()} tokens`,
-            `- ${icon === '$(warning)' ? '⚠️ Context window is getting large!' : icon === '$(flame)' ? '🔥 High context usage — consider new window' : '✅ Normal'}`,
+            `- ${vscode.l10n.t('Context (est.)')}: **${contextTokens.toLocaleString()}** tokens`,
+            `- ${vscode.l10n.t('Cumulative')}: ${totalTokens.toLocaleString()} tokens`,
+            `- ${icon === '$(warning)' ? vscode.l10n.t('⚠️ Context window is getting large!') : icon === '$(flame)' ? vscode.l10n.t('🔥 High context usage — consider new window') : vscode.l10n.t('✅ Normal')}`,
             '',
-            `_Click to reveal in sidebar_`,
+            `_${vscode.l10n.t('Click to reveal in sidebar')}_`,
         ].join('\n'));
         this._statusItem.show();
     }

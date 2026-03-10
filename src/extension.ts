@@ -28,7 +28,7 @@ const ARCHIVED_CACHE_KEY = 'archivedIds';
 
 /** Auto-summarize state */
 let autoSummarizeRunning = false;
-let autoSummarizeDismissed = false; // "暂不" → skip this VS Code session
+let autoSummarizeDismissed = false; // "Not now" → skip this VS Code session
 
 /**
  * Extension entry point.
@@ -149,7 +149,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('convManager.search', () => {
             const conversations = treeProvider.conversations;
             if (conversations.length === 0) {
-                vscode.window.showInformationMessage('No conversations loaded yet.');
+                vscode.window.showInformationMessage(vscode.l10n.t('No conversations loaded yet.'));
                 return;
             }
 
@@ -158,7 +158,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const quickPick = vscode.window.createQuickPick<SearchItem>();
-            quickPick.placeholder = 'Search conversations by title or workspace…';
+            quickPick.placeholder = vscode.l10n.t('Search conversations by title or workspace…');
             quickPick.matchOnDescription = true;
 
             // Build items from all conversations (sorted by lastModified)
@@ -172,7 +172,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                 // detail: time + message count (visible but not matched)
                 const infoParts: string[] = [];
-                if (c.messageCount) { infoParts.push(`${c.messageCount} msgs`); }
+                if (c.messageCount) { infoParts.push(vscode.l10n.t('{0} msgs', c.messageCount)); }
                 infoParts.push(timeAgo);
                 const detail = infoParts.join(' · ');
 
@@ -202,26 +202,26 @@ export function activate(context: vscode.ExtensionContext) {
             const current = treeProvider.sortBy;
             const items: (vscode.QuickPickItem & { sortKey: SortBy })[] = [
                 {
-                    label: '$(calendar) Last Modified',
-                    description: current === 'date' ? '(current)' : '',
-                    detail: 'Most recently modified first',
+                    label: vscode.l10n.t('$(calendar) Last Modified'),
+                    description: current === 'date' ? vscode.l10n.t('(current)') : '',
+                    detail: vscode.l10n.t('Most recently modified first'),
                     sortKey: 'date',
                 },
                 {
-                    label: '$(clock) Created',
-                    description: current === 'created' ? '(current)' : '',
-                    detail: 'Most recently created first',
+                    label: vscode.l10n.t('$(clock) Created'),
+                    description: current === 'created' ? vscode.l10n.t('(current)') : '',
+                    detail: vscode.l10n.t('Most recently created first'),
                     sortKey: 'created',
                 },
                 {
-                    label: '$(case-sensitive) Name',
-                    description: current === 'name' ? '(current)' : '',
-                    detail: 'Alphabetical by title',
+                    label: vscode.l10n.t('$(case-sensitive) Name'),
+                    description: current === 'name' ? vscode.l10n.t('(current)') : '',
+                    detail: vscode.l10n.t('Alphabetical by title'),
                     sortKey: 'name',
                 },
             ];
             const picked = await vscode.window.showQuickPick(items, {
-                title: 'Sort Conversations',
+                title: vscode.l10n.t('Sort Conversations'),
             });
             if (picked) {
                 treeProvider.setSortBy(picked.sortKey);
@@ -244,37 +244,37 @@ export function activate(context: vscode.ExtensionContext) {
 
             const items: FilterItem[] = [
                 {
-                    label: '$(globe) All Workspaces',
-                    description: current === null && !starredOnly && !hidingArchived ? '(current)' : '',
+                    label: vscode.l10n.t('$(globe) All Workspaces'),
+                    description: current === null && !starredOnly && !hidingArchived ? vscode.l10n.t('(current)') : '',
                     workspace: null,
                 },
                 {
-                    label: '$(star-full) Starred Only',
-                    description: starredOnly ? '(current)' : '',
-                    detail: `${treeProvider.starredIds.size} starred`,
+                    label: vscode.l10n.t('$(star-full) Starred Only'),
+                    description: starredOnly ? vscode.l10n.t('(current)') : '',
+                    detail: vscode.l10n.t('{0} starred', treeProvider.starredIds.size),
                     workspace: null,
                     starred: true,
                 },
                 {
-                    label: '$(archive) Active Only',
-                    description: hidingArchived ? '(current)' : '',
-                    detail: `${archivedCount} archived hidden`,
+                    label: vscode.l10n.t('$(archive) Active Only'),
+                    description: hidingArchived ? vscode.l10n.t('(current)') : '',
+                    detail: vscode.l10n.t('{0} archived hidden', archivedCount),
                     workspace: null,
                     hideArchived: true,
                 },
                 {
-                    label: '$(question) (no workspace)',
-                    description: current === '' && !starredOnly && !hidingArchived ? '(current)' : '',
+                    label: vscode.l10n.t('$(question) (no workspace)'),
+                    description: current === '' && !starredOnly && !hidingArchived ? vscode.l10n.t('(current)') : '',
                     workspace: '',
                 },
                 ...workspaces.map(ws => ({
                     label: `$(folder) ${ws}`,
-                    description: current === ws && !starredOnly && !hidingArchived ? '(current)' : '',
+                    description: current === ws && !starredOnly && !hidingArchived ? vscode.l10n.t('(current)') : '',
                     workspace: ws,
                 })),
             ];
             const picked = await vscode.window.showQuickPick(items, {
-                title: 'Filter Conversations',
+                title: vscode.l10n.t('Filter Conversations'),
             });
             if (picked) {
                 if (picked.starred) {
@@ -307,7 +307,7 @@ export function activate(context: vscode.ExtensionContext) {
             const session: ConversationInfo | undefined = item?.session;
             if (!session) { return; }
             vscode.env.clipboard.writeText(session.id);
-            vscode.window.showInformationMessage(`Copied: ${session.id}`);
+            vscode.window.showInformationMessage(vscode.l10n.t('Copied: {0}', session.id));
         }),
 
         vscode.commands.registerCommand('convManager.revealInExplorer', (item?: any) => {
@@ -340,34 +340,37 @@ export function activate(context: vscode.ExtensionContext) {
             // Accept SessionItem from tree view context menu
             const session: ConversationInfo | undefined = item?.session;
             if (!session) {
-                vscode.window.showWarningMessage('请右键点击一条会话来生成 AI 总结。');
+                vscode.window.showWarningMessage(vscode.l10n.t('Right-click a conversation to generate an AI summary.'));
                 return;
             }
 
             // Check if already summarized
             const existing = getSummary(context.globalState, session.id);
             if (existing) {
+                const btnRegenerate = vscode.l10n.t('Regenerate');
+                const btnView = vscode.l10n.t('View');
+                const btnCancel = vscode.l10n.t('Cancel');
                 const action = await vscode.window.showInformationMessage(
-                    `此会话已有总结 (${new Date(existing.generatedAt).toLocaleDateString()})。`,
-                    '重新生成', '查看', '取消',
+                    vscode.l10n.t('This conversation already has a summary ({0}).', new Date(existing.generatedAt).toLocaleDateString()),
+                    btnRegenerate, btnView, btnCancel,
                 );
-                if (action === '取消' || !action) { return; }
-                if (action === '查看') {
+                if (action === btnCancel || !action) { return; }
+                if (action === btnView) {
                     ContentPanel.show(session.id, session.title || session.id.substring(0, 8),
                         async () => messageCache.get(session.id) || null, existing.text);
                     return;
                 }
-                // '重新生成' falls through
+                // Regenerate falls through
             }
 
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `AI 总结: ${session.title || session.id.substring(0, 8)}`,
+                title: vscode.l10n.t('AI Summary: {0}', session.title || session.id.substring(0, 8)),
                 cancellable: false,
             }, async (progress) => {
                 try {
                     // Step 1: Get messages
-                    progress.report({ message: '获取会话内容...' });
+                    progress.report({ message: vscode.l10n.t('Fetching conversation content…') });
                     let messages = messageCache.get(session.id);
                     if (!messages) {
                         if (!apiClient) {
@@ -375,7 +378,7 @@ export function activate(context: vscode.ExtensionContext) {
                             await apiClient.connect();
                         }
                         if (!apiClient.isConnected) {
-                            throw new Error('无法连接 Antigravity API');
+                            throw new Error(vscode.l10n.t('Cannot connect to Antigravity API'));
                         }
                         messages = await apiClient.getConversation(session.id) ?? undefined;
                         if (messages && messages.length > 0) {
@@ -383,11 +386,11 @@ export function activate(context: vscode.ExtensionContext) {
                         }
                     }
                     if (!messages || messages.length === 0) {
-                        throw new Error('无法获取会话消息');
+                        throw new Error(vscode.l10n.t('Failed to fetch conversation messages'));
                     }
 
                     // Step 2: Call AI
-                    progress.report({ message: '调用 AI 生成总结...' });
+                    progress.report({ message: vscode.l10n.t('Calling AI to generate summary…') });
                     const summaryText = await summarize(messages, context.secrets);
 
                     // Step 3: Cache result
@@ -403,10 +406,10 @@ export function activate(context: vscode.ExtensionContext) {
                     ContentPanel.show(session.id, session.title || session.id.substring(0, 8),
                         async () => messages, summaryText);
 
-                    vscode.window.showInformationMessage('AI 总结生成完成。');
+                    vscode.window.showInformationMessage(vscode.l10n.t('AI summary generated successfully.'));
                 } catch (e: unknown) {
                     const msg = e instanceof Error ? e.message : String(e);
-                    vscode.window.showErrorMessage(`AI 总结失败: ${msg}`);
+                    vscode.window.showErrorMessage(vscode.l10n.t('AI summary failed: {0}', msg));
                 }
             });
         }),
@@ -437,7 +440,7 @@ export function activate(context: vscode.ExtensionContext) {
                 onCleanStale: async () => {
                     const staleConvs = treeProvider.conversations.filter(c => c.stale);
                     if (staleConvs.length === 0) {
-                        vscode.window.showInformationMessage('No stale conversations to clean.');
+                        vscode.window.showInformationMessage(vscode.l10n.t('No stale conversations to clean.'));
                         showStatsPanel();
                         return;
                     }
@@ -446,12 +449,13 @@ export function activate(context: vscode.ExtensionContext) {
                         .map(c => `• ${c.title || c.id.substring(0, 8)}`)
                         .join('\n');
 
+                    const btnClean = vscode.l10n.t('Confirm Cleanup');
                     const confirm = await vscode.window.showWarningMessage(
-                        `将清理 ${staleConvs.length} 个失效会话（移至回收站）`,
+                        vscode.l10n.t('Clean up {0} stale conversations (move to Recycle Bin)', staleConvs.length),
                         { modal: true, detail },
-                        '确认清理',
+                        btnClean,
                     );
-                    if (confirm !== '确认清理') {
+                    if (confirm !== btnClean) {
                         showStatsPanel(); // re-render to reset button state
                         return;
                     }
@@ -461,7 +465,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                     await vscode.window.withProgress({
                         location: vscode.ProgressLocation.Notification,
-                        title: 'Cleaning stale conversations…',
+                        title: vscode.l10n.t('Cleaning stale conversations…'),
                     }, async (progress) => {
                         for (const conv of staleConvs) {
                             progress.report({ message: `${cleaned + 1}/${staleConvs.length}` });
@@ -509,13 +513,13 @@ export function activate(context: vscode.ExtensionContext) {
                     // Update in-memory conversation list (remove stale) and refresh tree
                     const remaining = treeProvider.conversations.filter(c => !staleIds.has(c.id));
                     treeProvider.setConversations([...remaining]);
-                    treeView.badge = { value: remaining.length, tooltip: `${remaining.length} conversations` };
+                    treeView.badge = { value: remaining.length, tooltip: vscode.l10n.t('{0} conversations', remaining.length) };
 
                     // Refresh stats panel with updated data
                     showStatsPanel();
 
                     vscode.window.showInformationMessage(
-                        `已清理 ${cleaned} 个失效会话（已移至回收站）`,
+                        vscode.l10n.t('Cleaned up {0} stale conversations (moved to Recycle Bin)', cleaned),
                     );
                 },
             };
@@ -525,34 +529,34 @@ export function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('convManager.setApiKey', async () => {
             const current = await getApiKey(context.secrets);
-            const hint = current ? `当前: ····${current.slice(-4)}` : '未设置';
+            const hint = current ? vscode.l10n.t('Current: ····{0}', current.slice(-4)) : vscode.l10n.t('Not set');
             const key = await vscode.window.showInputBox({
-                title: 'Set AI API Key',
-                prompt: `输入 AI API Key (${hint})`,
+                title: vscode.l10n.t('Set AI API Key'),
+                prompt: vscode.l10n.t('Enter AI API Key ({0})', hint),
                 password: true,
-                placeHolder: '留空清除已有 key',
+                placeHolder: vscode.l10n.t('Leave empty to clear existing key'),
             });
             if (key === undefined) { return; } // cancelled
             await setApiKey(context.secrets, key);
 
             if (!key) {
-                vscode.window.showInformationMessage('API Key 已清除。');
+                vscode.window.showInformationMessage(vscode.l10n.t('API Key cleared.'));
                 return;
             }
 
             // Auto-test connection after saving
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: '验证 AI API 连通性...',
+                title: vscode.l10n.t('Verifying AI API connectivity…'),
             }, async () => {
                 try {
                     const models = await testConnection(context.secrets);
                     vscode.window.showInformationMessage(
-                        `✅ 连接成功！发现 ${models.length} 个模型${models.length > 0 ? `（${models.slice(0, 3).join(', ')}…）` : ''}`,
+                        vscode.l10n.t('\u2705 Connected! Found {0} models{1}', models.length, models.length > 0 ? ` (${models.slice(0, 3).join(', ')}\u2026)` : ''),
                     );
                 } catch (e: unknown) {
                     const msg = e instanceof Error ? e.message : String(e);
-                    vscode.window.showWarningMessage(`API Key 已保存，但连接测试失败: ${msg}`);
+                    vscode.window.showWarningMessage(vscode.l10n.t('API Key saved, but connection test failed: {0}', msg));
                 }
             });
         }),
@@ -566,7 +570,7 @@ export function activate(context: vscode.ExtensionContext) {
                 await apiClient.connect();
             }
             if (!apiClient.isConnected) {
-                vscode.window.showErrorMessage('Cannot connect to Antigravity API. Make sure Antigravity is running.');
+                vscode.window.showErrorMessage(vscode.l10n.t('Cannot connect to Antigravity API. Make sure Antigravity is running.'));
                 return;
             }
 
@@ -644,7 +648,7 @@ async function loadConversations(
             }
         }
         treeProvider.setConversations(conversations);
-        treeView.badge = { value: conversations.length, tooltip: `${conversations.length} conversations` };
+        treeView.badge = { value: conversations.length, tooltip: vscode.l10n.t('{0} conversations', conversations.length) };
 
         // Phase 2: API metadata enrichment
         try {
@@ -737,7 +741,7 @@ async function loadConversations(
         }
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        vscode.window.showErrorMessage(`Failed to scan conversations: ${msg}`);
+        vscode.window.showErrorMessage(vscode.l10n.t('Failed to scan conversations: {0}', msg));
     }
 
     // Persist cache updates
@@ -845,19 +849,22 @@ async function tryAutoSummarize(
 
     // "ask" mode: prompt user
     if (mode === 'ask') {
+        const btnStart = vscode.l10n.t('Start');
+        const btnNotNow = vscode.l10n.t('Not Now');
+        const btnDisable = vscode.l10n.t('Don\'t Ask Again');
         const action = await vscode.window.showInformationMessage(
-            `发现 ${candidates.length} 条会话可自动总结（≥${minMessages} 条消息、${cooldownHours}h 内未活跃），是否继续？`,
-            '开始总结', '暂不', '不再提示',
+            vscode.l10n.t('Found {0} conversations ready for auto-summary (\u2265{1} messages, inactive for {2}h). Continue?', candidates.length, minMessages, cooldownHours),
+            btnStart, btnNotNow, btnDisable,
         );
-        if (action === '暂不' || !action) {
+        if (action === btnNotNow || !action) {
             autoSummarizeDismissed = true;
             return;
         }
-        if (action === '不再提示') {
+        if (action === btnDisable) {
             cfg.update('autoSummarize', 'off', vscode.ConfigurationTarget.Global);
             return;
         }
-        // '开始总结' falls through
+        // Start falls through
     }
 
     // Run the queue
@@ -880,8 +887,8 @@ async function tryAutoSummarize(
             if (autoSummarizeCancelled) { break; }
 
             const conv = candidates[i];
-            statusItem.text = `$(sync~spin) 总结中 ${i + 1}/${candidates.length}…`;
-            statusItem.tooltip = `${conv.title || conv.id.substring(0, 8)} — 点击中止`;
+            statusItem.text = `$(sync~spin) ${vscode.l10n.t('Summarizing {0}/{1}…', i + 1, candidates.length)}`;
+            statusItem.tooltip = `${conv.title || conv.id.substring(0, 8)} — ${vscode.l10n.t('click to stop')}`;
 
             try {
                 // Fetch messages
@@ -892,7 +899,7 @@ async function tryAutoSummarize(
                         await apiClient.connect();
                     }
                     if (!apiClient.isConnected) {
-                        throw new Error('API 不可用');
+                        throw new Error(vscode.l10n.t('API unavailable'));
                     }
                     const fetched = await apiClient.getConversation(conv.id);
                     if (fetched && fetched.length > 0) {
@@ -938,15 +945,15 @@ async function tryAutoSummarize(
         if (autoSummarizeCancelled) {
             treeProvider.refresh();
             vscode.window.showInformationMessage(
-                `⏹ 自动总结已中止：${success} 条已完成${fail > 0 ? `，${fail} 条失败` : ''}`,
+                vscode.l10n.t('\u23f9 Auto-summary stopped: {0} completed{1}', success, fail > 0 ? vscode.l10n.t(', {0} failed', fail) : ''),
             );
         } else if (success > 0) {
             treeProvider.refresh();
             vscode.window.showInformationMessage(
-                `✨ 自动总结完成：${success} 条成功${fail > 0 ? `，${fail} 条失败` : ''}`,
+                vscode.l10n.t('\u2728 Auto-summary complete: {0} succeeded{1}', success, fail > 0 ? vscode.l10n.t(', {0} failed', fail) : ''),
             );
         } else if (fail > 0) {
-            vscode.window.showWarningMessage(`自动总结全部失败（${fail} 条）`);
+            vscode.window.showWarningMessage(vscode.l10n.t('Auto-summary failed for all {0} conversations', fail));
         }
     }
 }

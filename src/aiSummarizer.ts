@@ -92,13 +92,13 @@ export async function summarize(
     const cfg = getConfig();
     const apiKey = await getApiKey(secrets);
 
-    if (!cfg.endpoint) { throw new Error('请先在设置中配置 AI Endpoint (convManager.ai.endpoint)'); }
-    if (!apiKey) { throw new Error('请先设置 API Key (命令面板 → "Conversations: Set AI API Key")'); }
-    if (!cfg.model) { throw new Error('请先在设置中配置模型名称 (convManager.ai.model)'); }
+    if (!cfg.endpoint) { throw new Error(vscode.l10n.t('AI Endpoint is not configured. Set it in Settings (convManager.ai.endpoint).')); }
+    if (!apiKey) { throw new Error(vscode.l10n.t('API Key is not set. Use Command Palette → "Conversations: Set AI API Key".')); }
+    if (!cfg.model) { throw new Error(vscode.l10n.t('Model name is not configured. Set it in Settings (convManager.ai.model).')); }
 
     // Build conversation text
     const conversationText = messages
-        .map(m => `[${m.role === 'user' ? '用户' : 'AI'}]\n${m.text}`)
+        .map(m => `[${m.role === 'user' ? 'User' : 'AI'}]\n${m.text}`)
         .join('\n\n---\n\n');
 
     const systemPrompt = cfg.prompt;
@@ -118,8 +118,8 @@ export async function testConnection(secrets: vscode.SecretStorage): Promise<str
     const cfg = getConfig();
     const apiKey = await getApiKey(secrets);
 
-    if (!cfg.endpoint) { throw new Error('请先配置 Endpoint (convManager.ai.endpoint)'); }
-    if (!apiKey) { throw new Error('API Key 未设置'); }
+    if (!cfg.endpoint) { throw new Error(vscode.l10n.t('Endpoint is not configured (convManager.ai.endpoint).')); }
+    if (!apiKey) { throw new Error(vscode.l10n.t('API Key is not set.')); }
 
     const base = cfg.endpoint;
     let url: string;
@@ -164,7 +164,7 @@ async function callOpenAI(
     });
 
     const result = JSON.parse(data);
-    return result.choices?.[0]?.message?.content || '(AI 未返回内容)';
+    return result.choices?.[0]?.message?.content || vscode.l10n.t('(No response from AI)');
 }
 
 async function callGemini(
@@ -184,7 +184,7 @@ async function callGemini(
     });
 
     const result = JSON.parse(data);
-    return result.candidates?.[0]?.content?.parts?.[0]?.text || '(AI 未返回内容)';
+    return result.candidates?.[0]?.content?.parts?.[0]?.text || vscode.l10n.t('(No response from AI)');
 }
 
 // ====================== HTTP Helper ======================
@@ -219,7 +219,7 @@ function httpPost(url: string, body: string, headers: Record<string, string>): P
 
         req.on('error', reject);
         req.setTimeout(60000, () => {
-            req.destroy(new Error('请求超时 (60s)'));
+            req.destroy(new Error(vscode.l10n.t('Request timeout (60s)')));
         });
         req.write(body);
         req.end();
@@ -250,7 +250,7 @@ function httpGet(url: string, headers: Record<string, string>): Promise<string> 
 
         req.on('error', reject);
         req.setTimeout(15000, () => {
-            req.destroy(new Error('连接超时 (15s)'));
+            req.destroy(new Error(vscode.l10n.t('Connection timeout (15s)')));
         });
         req.end();
     });

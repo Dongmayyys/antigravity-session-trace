@@ -14,12 +14,13 @@
         "onStartupFinished"
     ],
     "main": "./dist/extension.js",
+    "l10n": "./l10n",
     "contributes": {
         "viewsContainers": {
             "activitybar": [
                 {
                     "id": "antigravity-conv-manager",
-                    "title": "Conversations",
+                    "title": "%viewsContainers.conversations.title%",
                     "icon": "$(comment-discussion)"
                 }
             ]
@@ -28,106 +29,106 @@
             "antigravity-conv-manager": [
                 {
                     "id": "convManager.sessions",
-                    "name": "Sessions"
+                    "name": "%views.sessions.name%"
                 }
             ]
         },
         "commands": [
             {
                 "command": "convManager.refresh",
-                "title": "Refresh Sessions",
+                "title": "%commands.refresh%",
                 "icon": "$(refresh)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.openSession",
-                "title": "Open Session",
+                "title": "%commands.openSession%",
                 "icon": "$(open-preview)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.search",
-                "title": "Search Conversations…",
+                "title": "%commands.search%",
                 "icon": "$(search)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.sortBy",
-                "title": "Sort By…",
+                "title": "%commands.sortBy%",
                 "icon": "$(list-ordered)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.filterWorkspace",
-                "title": "Filter by Workspace…",
+                "title": "%commands.filterWorkspace%",
                 "icon": "$(filter)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.summarize",
-                "title": "AI Summarize",
+                "title": "%commands.summarize%",
                 "icon": "$(sparkle)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.showStats",
-                "title": "Show Stats",
+                "title": "%commands.showStats%",
                 "icon": "$(graph)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.setApiKey",
-                "title": "Set AI API Key",
+                "title": "%commands.setApiKey%",
                 "icon": "$(key)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.star",
-                "title": "Star Conversation",
+                "title": "%commands.star%",
                 "icon": "$(star-empty)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.unstar",
-                "title": "Unstar Conversation",
+                "title": "%commands.unstar%",
                 "icon": "$(star-full)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.showTokenDashboard",
-                "title": "Token Usage Dashboard",
+                "title": "%commands.showTokenDashboard%",
                 "icon": "$(graph)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.viewRecent",
-                "title": "Recent Conversations",
+                "title": "%commands.viewRecent%",
                 "icon": "$(clock)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.viewSessions",
-                "title": "All Sessions",
+                "title": "%commands.viewSessions%",
                 "icon": "$(list-unordered)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.copyId",
-                "title": "Copy Conversation ID",
+                "title": "%commands.copyId%",
                 "icon": "$(clippy)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.revealInExplorer",
-                "title": "Reveal in File Explorer",
+                "title": "%commands.revealInExplorer%",
                 "icon": "$(folder-opened)",
-                "category": "Conversations"
+                "category": "%category%"
             },
             {
                 "command": "convManager.toggleArchive",
-                "title": "Toggle Archive",
+                "title": "%commands.toggleArchive%",
                 "icon": "$(archive)",
-                "category": "Conversations"
+                "category": "%category%"
             }
         ],
         "menus": {
@@ -202,13 +203,13 @@
             ]
         },
         "configuration": {
-            "title": "Conversation Manager — AI",
+            "title": "%config.title%",
             "properties": {
                 "convManager.ai.endpoint": {
                     "order": 1,
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "AI API base URL (e.g. `https://api.openai.com/v1` or `https://generativelanguage.googleapis.com/v1beta`)\n\n> 🔐 **API Key** 通过 OS 级安全存储保存，请通过命令面板设置：`Ctrl+Shift+P` → `Conversations: Set AI API Key`"
+                    "markdownDescription": "%config.ai.endpoint.markdownDescription%"
                 },
                 "convManager.ai.format": {
                     "order": 2,
@@ -218,19 +219,19 @@
                         "gemini"
                     ],
                     "default": "openai",
-                    "description": "API format: openai (chat/completions + Bearer) or gemini (generateContent + ?key=)"
+                    "description": "%config.ai.format.description%"
                 },
                 "convManager.ai.model": {
                     "order": 3,
                     "type": "string",
                     "default": "",
-                    "description": "Model name (e.g. gpt-4o, gemini-2.0-flash)"
+                    "description": "%config.ai.model.description%"
                 },
                 "convManager.ai.prompt": {
                     "order": 4,
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "System prompt for AI summarization. Leave empty to use the built-in default.",
+                    "markdownDescription": "%config.ai.prompt.markdownDescription%",
                     "editPresentation": "multilineText"
                 },
                 "convManager.ai.autoSummarize": {
@@ -242,25 +243,25 @@
                         "off"
                     ],
                     "default": "ask",
-                    "markdownDescription": "Auto-summarize conversations on startup.\n- `ask`: Prompt before running\n- `on`: Run silently\n- `off`: Disabled"
+                    "markdownDescription": "%config.ai.autoSummarize.markdownDescription%"
                 },
                 "convManager.ai.minMessages": {
                     "order": 6,
                     "type": "number",
                     "default": 5,
-                    "description": "Minimum message count for auto-summarize. Conversations with fewer messages are skipped."
+                    "description": "%config.ai.minMessages.description%"
                 },
                 "convManager.ai.cooldownHours": {
                     "order": 7,
                     "type": "number",
                     "default": 2,
-                    "description": "Skip conversations modified within this many hours (likely still in progress)."
+                    "description": "%config.ai.cooldownHours.description%"
                 },
                 "convManager.ai.staleThreshold": {
                     "order": 8,
                     "type": "number",
                     "default": 10,
-                    "description": "Message increase threshold to invalidate an existing summary. When a conversation gains this many new messages since its last summary, the summary is cleared for re-generation."
+                    "description": "%config.ai.staleThreshold.description%"
                 },
                 "convManager.archiveKeywords": {
                     "order": 9,
@@ -271,7 +272,7 @@
                     "default": [
                         "@[/close]"
                     ],
-                    "markdownDescription": "Auto-archive keyword list. Conversations containing any of these keywords in user messages will be automatically marked as archived during loading. You can also manually toggle archive via the inline button.\n\nSet to an empty array `[]` to disable auto-detection."
+                    "markdownDescription": "%config.archiveKeywords.markdownDescription%"
                 }
             }
         }
@@ -290,6 +291,7 @@
         "typescript": "^5.3.0"
     },
     "dependencies": {
+        "@vscode/l10n": "^0.0.18",
         "marked": "^17.0.3"
     }
 }

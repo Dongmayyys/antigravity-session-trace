@@ -174,12 +174,12 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
         if (sorted.length === 0) {
             const hint = this._searchQuery
-                ? 'No matches — try a different search term'
+                ? vscode.l10n.t('No matches — try a different search term')
                 : this._showStarredOnly
-                    ? 'No starred conversations'
+                    ? vscode.l10n.t('No starred conversations')
                     : this._filterWorkspace !== null
-                        ? 'No conversations in this workspace'
-                        : 'No conversations found';
+                        ? vscode.l10n.t('No conversations in this workspace')
+                        : vscode.l10n.t('No conversations found');
             return [new InfoItem(hint, '', 'info')];
         }
 
@@ -191,7 +191,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         // Group by workspace
         const grouped = new Map<string, ConversationInfo[]>();
         for (const c of sorted) {
-            const key = c.workspace || '(no workspace)';
+            const key = c.workspace || vscode.l10n.t('(no workspace)');
             if (!grouped.has(key)) { grouped.set(key, []); }
             grouped.get(key)!.push(c);
         }
@@ -203,14 +203,14 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
                 if (a === activeWs) { return -1; }
                 if (b === activeWs) { return 1; }
             }
-            if (a === '(no workspace)') { return 1; }
-            if (b === '(no workspace)') { return -1; }
+            if (a === vscode.l10n.t('(no workspace)')) { return 1; }
+            if (b === vscode.l10n.t('(no workspace)')) { return -1; }
             return a.localeCompare(b);
         });
 
         return sortedKeys.map(key => {
             const sessions = grouped.get(key)!;
-            const icon = key === '(no workspace)' ? 'globe' : 'folder';
+            const icon = key === vscode.l10n.t('(no workspace)') ? 'globe' : 'folder';
             const expanded = key === activeWs;
             return new CategoryItem(key, sessions, icon, expanded);
         });
@@ -237,7 +237,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         const sorted = [...filtered].sort((a, b) => b.lastModified - a.lastModified);
 
         if (sorted.length === 0) {
-            return [new InfoItem('No recent conversations', '', 'info')];
+            return [new InfoItem(vscode.l10n.t('No recent conversations'), '', 'info')];
         }
 
         return sorted.map(
@@ -280,13 +280,13 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 export function relativeTime(ts: number): string {
     const diff = Date.now() - ts;
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) { return 'just now'; }
-    if (minutes < 60) { return `${minutes}m ago`; }
+    if (minutes < 1) { return vscode.l10n.t('just now'); }
+    if (minutes < 60) { return vscode.l10n.t('{0}m ago', minutes); }
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) { return `${hours}h ago`; }
+    if (hours < 24) { return vscode.l10n.t('{0}h ago', hours); }
     const days = Math.floor(hours / 24);
-    if (days < 30) { return `${days}d ago`; }
-    return `${Math.floor(days / 30)}mo ago`;
+    if (days < 30) { return vscode.l10n.t('{0}d ago', days); }
+    return vscode.l10n.t('{0}mo ago', Math.floor(days / 30));
 }
 
 // ====================== Tree Item Classes ======================
@@ -344,7 +344,7 @@ export class SessionItem extends vscode.TreeItem {
 
         if (session.stale) {
             // Stale: local remnant not shown by Antigravity
-            this.description = `(stale) · ${rel}`;
+            this.description = `(${vscode.l10n.t('stale')}) · ${rel}`;
             this.iconPath = new vscode.ThemeIcon(
                 'circle-slash',
                 new vscode.ThemeColor('disabledForeground'),
@@ -352,14 +352,14 @@ export class SessionItem extends vscode.TreeItem {
             this.tooltip = new vscode.MarkdownString([
                 `**${rawLabel}**`,
                 '',
-                '⚠️ *Stale — exists locally but not shown in Antigravity*',
+                vscode.l10n.t('⚠️ *Stale — exists locally but not shown in Antigravity*'),
                 '',
-                `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
+                `- **${vscode.l10n.t('Last modified')}**: ${new Date(session.lastModified).toLocaleString()}`,
                 `- **ID**: \`${session.id}\``,
             ].join('\n'));
         } else {
             // Normal conversation
-            this.description = turns ? `${turns} msgs · ${rel}` : rel;
+            this.description = turns ? `${turns} ${vscode.l10n.t('msgs')} · ${rel}` : rel;
 
             // Markdown tooltip with metadata
             // Tooltip: summary-only when available, metadata fallback otherwise
@@ -378,10 +378,10 @@ export class SessionItem extends vscode.TreeItem {
                 this.tooltip = new vscode.MarkdownString([
                     `**${rawLabel}**`,
                     '',
-                    `- **Workspace**: ${session.workspace || '(none)'}`,
-                    `- **Last modified**: ${new Date(session.lastModified).toLocaleString()}`,
-                    session.createdAt ? `- **Created**: ${new Date(session.createdAt).toLocaleString()}` : '',
-                    turns !== undefined ? `- **Messages**: ${turns}` : '',
+                    `- **${vscode.l10n.t('Workspace')}**: ${session.workspace || vscode.l10n.t('(none)')}`,
+                    `- **${vscode.l10n.t('Last modified')}**: ${new Date(session.lastModified).toLocaleString()}`,
+                    session.createdAt ? `- **${vscode.l10n.t('Created')}**: ${new Date(session.createdAt).toLocaleString()}` : '',
+                    turns !== undefined ? `- **${vscode.l10n.t('Messages')}**: ${turns}` : '',
                     `- **ID**: \`${session.id}\``,
                 ].filter(Boolean).join('\n'));
             }
