@@ -30,6 +30,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     private _searchQuery = '';
     private _showStarredOnly = false;
     private _hideArchived = false;
+    private _activeWorkspace: string | null = null;
 
     /** IDs of conversations that have AI summaries (set by extension.ts). */
     summarizedIds: Set<string> = new Set();
@@ -93,6 +94,14 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     setSearch(query: string): void {
         this._searchQuery = query;
         this._onDidChangeTreeData.fire();
+    }
+
+    /**
+     * Set the active workspace name (detected from the current VS Code window).
+     * The matching group will be sorted first and expanded by default.
+     */
+    setActiveWorkspace(workspace: string | null): void {
+        this._activeWorkspace = workspace;
     }
 
     refresh(): void {
@@ -187,7 +196,13 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
             grouped.get(key)!.push(c);
         }
 
+        const activeWs = this._activeWorkspace;
         const sortedKeys = [...grouped.keys()].sort((a, b) => {
+            // Active workspace always first
+            if (activeWs) {
+                if (a === activeWs) { return -1; }
+                if (b === activeWs) { return 1; }
+            }
             if (a === '(no workspace)') { return 1; }
             if (b === '(no workspace)') { return -1; }
             return a.localeCompare(b);
@@ -196,7 +211,8 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         return sortedKeys.map(key => {
             const sessions = grouped.get(key)!;
             const icon = key === '(no workspace)' ? 'globe' : 'folder';
-            return new CategoryItem(key, sessions, icon);
+            const expanded = key === activeWs;
+            return new CategoryItem(key, sessions, icon, expanded);
         });
     }
 
@@ -283,8 +299,14 @@ class CategoryItem extends vscode.TreeItem {
         public readonly workspaceKey: string,
         public readonly sessions: ConversationInfo[],
         icon: string = 'folder',
+        expanded: boolean = false,
     ) {
-        super(`${workspaceKey} (${sessions.length})`, vscode.TreeItemCollapsibleState.Collapsed);
+        super(
+            `${workspaceKey} (${sessions.length})`,
+            expanded
+                ? vscode.TreeItemCollapsibleState.Expanded
+                : vscode.TreeItemCollapsibleState.Collapsed,
+        );
         this.id = `category:${workspaceKey}`;
         this.iconPath = new vscode.ThemeIcon(icon);
         this.contextValue = 'category';

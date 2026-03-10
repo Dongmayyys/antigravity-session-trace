@@ -61,6 +61,13 @@ export function activate(context: vscode.ExtensionContext) {
     treeProvider.setViewMode(savedViewMode);
     vscode.commands.executeCommand('setContext', 'convManager.viewMode', savedViewMode);
 
+    // Detect current workspace to auto-prioritize its group in the tree
+    const currentFolder = vscode.workspace.workspaceFolders?.[0]?.name ?? null;
+    if (currentFolder) {
+        treeProvider.setActiveWorkspace(currentFolder);
+        log(`Active workspace detected: ${currentFolder}`);
+    }
+
     // Register native Tree View for the sidebar
     const treeView = vscode.window.createTreeView('convManager.sessions', {
         treeDataProvider: treeProvider,
