@@ -27,7 +27,7 @@ export interface StatsPanelCallbacks {
 }
 
 export class StatsPanel {
-    private static readonly viewType = 'convManager.stats';
+    private static readonly viewType = 'sessionTrace.stats';
     private static currentPanel: StatsPanel | undefined;
 
     private disposed = false;

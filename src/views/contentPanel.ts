@@ -26,7 +26,7 @@ import { Marked } from 'marked';
  */
 export class ContentPanel {
     private static currentPanel: ContentPanel | undefined;
-    private static readonly viewType = 'convManager.content';
+    private static readonly viewType = 'sessionTrace.content';
 
     private readonly panel: vscode.WebviewPanel;
     private currentConversationId: string | undefined;

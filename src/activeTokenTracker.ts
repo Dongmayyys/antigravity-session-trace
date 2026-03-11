@@ -50,7 +50,7 @@ export class ActiveTokenTracker implements vscode.Disposable {
             vscode.StatusBarAlignment.Left, -100,
         );
         this._statusItem.name = vscode.l10n.t('Active Conversation Tokens');
-        this._statusItem.command = 'convManager.revealActive';
+        this._statusItem.command = 'sessionTrace.revealActive';
 
         // Instantly infer current conversation from .pb file modification times
         const latestConvId = this._findLatestConversation();

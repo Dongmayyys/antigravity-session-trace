@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Restore persisted view mode + set context key for menu when-clauses
     const savedViewMode = context.globalState.get<ViewMode>(VIEW_MODE_CACHE_KEY) || 'sessions';
     treeProvider.setViewMode(savedViewMode);
-    vscode.commands.executeCommand('setContext', 'convManager.viewMode', savedViewMode);
+    vscode.commands.executeCommand('setContext', 'sessionTrace.viewMode', savedViewMode);
 
     // Detect current workspace to auto-prioritize its group in the tree
     const currentFolder = vscode.workspace.workspaceFolders?.[0]?.name ?? null;
@@ -69,7 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     // Register native Tree View for the sidebar
-    const treeView = vscode.window.createTreeView('convManager.sessions', {
+    const treeView = vscode.window.createTreeView('sessionTrace.sessions', {
         treeDataProvider: treeProvider,
         showCollapseAll: true,
     });
@@ -92,7 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Commands
     context.subscriptions.push(
-        vscode.commands.registerCommand('convManager.refresh', () => {
+        vscode.commands.registerCommand('sessionTrace.refresh', () => {
             apiClient?.disconnect();
             apiClient = undefined;
             messageCache.clear();
@@ -101,24 +101,24 @@ export function activate(context: vscode.ExtensionContext) {
             });
         }),
 
-        vscode.commands.registerCommand('convManager.viewRecent', () => {
+        vscode.commands.registerCommand('sessionTrace.viewRecent', () => {
             treeProvider.setViewMode('recent');
             context.globalState.update(VIEW_MODE_CACHE_KEY, 'recent');
-            vscode.commands.executeCommand('setContext', 'convManager.viewMode', 'recent');
+            vscode.commands.executeCommand('setContext', 'sessionTrace.viewMode', 'recent');
         }),
 
-        vscode.commands.registerCommand('convManager.viewSessions', () => {
+        vscode.commands.registerCommand('sessionTrace.viewSessions', () => {
             treeProvider.setViewMode('sessions');
             context.globalState.update(VIEW_MODE_CACHE_KEY, 'sessions');
-            vscode.commands.executeCommand('setContext', 'convManager.viewMode', 'sessions');
+            vscode.commands.executeCommand('setContext', 'sessionTrace.viewMode', 'sessions');
         }),
 
-        vscode.commands.registerCommand('convManager.revealActive', () => {
+        vscode.commands.registerCommand('sessionTrace.revealActive', () => {
             // Reveal the active conversation in the tree view (placeholder — just open sidebar)
-            vscode.commands.executeCommand('convManager.sessions.focus');
+            vscode.commands.executeCommand('sessionTrace.sessions.focus');
         }),
 
-        vscode.commands.registerCommand('convManager.openSession', (session?: ConversationInfo) => {
+        vscode.commands.registerCommand('sessionTrace.openSession', (session?: ConversationInfo) => {
             if (!session) { return; }
             const existingSummary = getSummary(context.globalState, session.id);
             ContentPanel.show(
@@ -146,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
             );
         }),
 
-        vscode.commands.registerCommand('convManager.search', () => {
+        vscode.commands.registerCommand('sessionTrace.search', () => {
             const conversations = treeProvider.conversations;
             if (conversations.length === 0) {
                 vscode.window.showInformationMessage(vscode.l10n.t('No conversations loaded yet.'));
@@ -190,7 +190,7 @@ export function activate(context: vscode.ExtensionContext) {
                     quickPick.dispose();
                     // Clear tree search filter and open the selected conversation
                     treeProvider.setSearch('');
-                    vscode.commands.executeCommand('convManager.openSession', selected.session);
+                    vscode.commands.executeCommand('sessionTrace.openSession', selected.session);
                 }
             });
 
@@ -198,7 +198,7 @@ export function activate(context: vscode.ExtensionContext) {
             quickPick.show();
         }),
 
-        vscode.commands.registerCommand('convManager.sortBy', async () => {
+        vscode.commands.registerCommand('sessionTrace.sortBy', async () => {
             const current = treeProvider.sortBy;
             const items: (vscode.QuickPickItem & { sortKey: SortBy })[] = [
                 {
@@ -229,7 +229,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
 
-        vscode.commands.registerCommand('convManager.filterWorkspace', async () => {
+        vscode.commands.registerCommand('sessionTrace.filterWorkspace', async () => {
             const workspaces = treeProvider.getUniqueWorkspaces();
             const current = treeProvider.filterWorkspace;
             const starredOnly = treeProvider.showStarredOnly;
@@ -287,7 +287,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
 
-        vscode.commands.registerCommand('convManager.star', (item?: any) => {
+        vscode.commands.registerCommand('sessionTrace.star', (item?: any) => {
             const session: ConversationInfo | undefined = item?.session;
             if (!session) { return; }
             treeProvider.starredIds.add(session.id);
@@ -295,7 +295,7 @@ export function activate(context: vscode.ExtensionContext) {
             treeProvider.refresh();
         }),
 
-        vscode.commands.registerCommand('convManager.unstar', (item?: any) => {
+        vscode.commands.registerCommand('sessionTrace.unstar', (item?: any) => {
             const session: ConversationInfo | undefined = item?.session;
             if (!session) { return; }
             treeProvider.starredIds.delete(session.id);
@@ -303,21 +303,21 @@ export function activate(context: vscode.ExtensionContext) {
             treeProvider.refresh();
         }),
 
-        vscode.commands.registerCommand('convManager.copyId', (item?: any) => {
+        vscode.commands.registerCommand('sessionTrace.copyId', (item?: any) => {
             const session: ConversationInfo | undefined = item?.session;
             if (!session) { return; }
             vscode.env.clipboard.writeText(session.id);
             vscode.window.showInformationMessage(vscode.l10n.t('Copied: {0}', session.id));
         }),
 
-        vscode.commands.registerCommand('convManager.revealInExplorer', (item?: any) => {
+        vscode.commands.registerCommand('sessionTrace.revealInExplorer', (item?: any) => {
             const session: ConversationInfo | undefined = item?.session;
             if (!session) { return; }
             const brainPath = path.join(getAntigravityRoot(), 'brain', session.id);
             vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(brainPath));
         }),
 
-        vscode.commands.registerCommand('convManager.toggleArchive', (item?: any) => {
+        vscode.commands.registerCommand('sessionTrace.toggleArchive', (item?: any) => {
             const session: ConversationInfo | undefined = item?.session;
             if (!session) { return; }
 
@@ -336,7 +336,7 @@ export function activate(context: vscode.ExtensionContext) {
             treeProvider.refresh();
         }),
 
-        vscode.commands.registerCommand('convManager.summarize', async (item?: any) => {
+        vscode.commands.registerCommand('sessionTrace.summarize', async (item?: any) => {
             // Accept SessionItem from tree view context menu
             const session: ConversationInfo | undefined = item?.session;
             if (!session) {
@@ -414,8 +414,8 @@ export function activate(context: vscode.ExtensionContext) {
             });
         }),
 
-        vscode.commands.registerCommand('convManager.showStats', async () => {
-            const cfg = vscode.workspace.getConfiguration('convManager.ai');
+        vscode.commands.registerCommand('sessionTrace.showStats', async () => {
+            const cfg = vscode.workspace.getConfiguration('sessionTrace.ai');
             const apiKey = await getApiKey(context.secrets);
             const aiConfig: AiConfigSnapshot = {
                 minMessages: cfg.get<number>('minMessages') ?? 5,
@@ -426,7 +426,7 @@ export function activate(context: vscode.ExtensionContext) {
             };
 
             const showStatsPanel = () => {
-                const freshCfg = vscode.workspace.getConfiguration('convManager.ai');
+                const freshCfg = vscode.workspace.getConfiguration('sessionTrace.ai');
                 const freshAiConfig: AiConfigSnapshot = {
                     ...aiConfig,
                     hasApiKey: aiConfig.hasApiKey,
@@ -527,7 +527,7 @@ export function activate(context: vscode.ExtensionContext) {
             showStatsPanel();
         }),
 
-        vscode.commands.registerCommand('convManager.setApiKey', async () => {
+        vscode.commands.registerCommand('sessionTrace.setApiKey', async () => {
             const current = await getApiKey(context.secrets);
             const hint = current ? vscode.l10n.t('Current: ····{0}', current.slice(-4)) : vscode.l10n.t('Not set');
             const key = await vscode.window.showInputBox({
@@ -561,7 +561,7 @@ export function activate(context: vscode.ExtensionContext) {
             });
         }),
 
-        vscode.commands.registerCommand('convManager.showTokenDashboard', async () => {
+        vscode.commands.registerCommand('sessionTrace.showTokenDashboard', async () => {
             const dashboard = TokenDashboard.create();
 
             // Ensure API connection
@@ -686,7 +686,7 @@ async function loadConversations(
 
                 // Phase 3: Deep enrichment via GetCascadeTrajectory
                 // Fetch conversations missing workspace, createdAt, or messageCount
-                const archiveKeywords: string[] = vscode.workspace.getConfiguration('convManager').get('archiveKeywords', ['@[/close]']);
+                const archiveKeywords: string[] = vscode.workspace.getConfiguration('sessionTrace').get('archiveKeywords', ['@[/close]']);
                 const needsEnrichment = conversations.filter(
                     c => (!c.workspace && !(c.id in cache))
                         || !c.createdAt
@@ -773,7 +773,7 @@ function invalidateStaleSummaries(
     context: vscode.ExtensionContext,
     treeProvider: SessionTreeProvider,
 ): void {
-    const cfg = vscode.workspace.getConfiguration('convManager.ai');
+    const cfg = vscode.workspace.getConfiguration('sessionTrace.ai');
     const threshold = cfg.get<number>('staleThreshold') ?? 10;
     const cache: Record<string, SummaryEntry> = context.globalState.get('summaryCache', {});
     const conversations = treeProvider.conversations;
@@ -808,7 +808,7 @@ function invalidateStaleSummaries(
  * Try to auto-summarize unsummarized conversations.
  * Called after loadConversations completes.
  *
- * Behavior is controlled by convManager.ai.autoSummarize:
+ * Behavior is controlled by sessionTrace.ai.autoSummarize:
  *   - "ask": Prompt user for confirmation (default)
  *   - "on": Run silently
  *   - "off": Disabled
@@ -821,7 +821,7 @@ async function tryAutoSummarize(
     if (autoSummarizeRunning || autoSummarizeDismissed) { return; }
 
     // Guard: check config
-    const cfg = vscode.workspace.getConfiguration('convManager.ai');
+    const cfg = vscode.workspace.getConfiguration('sessionTrace.ai');
     const mode = cfg.get<string>('autoSummarize') || 'ask';
     if (mode === 'off') { return; }
 
@@ -871,12 +871,12 @@ async function tryAutoSummarize(
     autoSummarizeRunning = true;
     let autoSummarizeCancelled = false;
 
-    const stopCommand = vscode.commands.registerCommand('convManager._stopAutoSummarize', () => {
+    const stopCommand = vscode.commands.registerCommand('sessionTrace._stopAutoSummarize', () => {
         autoSummarizeCancelled = true;
     });
 
     const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-    statusItem.command = 'convManager._stopAutoSummarize';
+    statusItem.command = 'sessionTrace._stopAutoSummarize';
     statusItem.show();
 
     let success = 0;

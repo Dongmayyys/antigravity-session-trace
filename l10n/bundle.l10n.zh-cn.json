@@ -1,8 +1,8 @@
 {
-    "AI Endpoint is not configured. Set it in Settings (convManager.ai.endpoint).": "请先在设置中配置 AI Endpoint (convManager.ai.endpoint)",
+    "AI Endpoint is not configured. Set it in Settings (sessionTrace.ai.endpoint).": "请先在设置中配置 AI Endpoint (sessionTrace.ai.endpoint)",
     "API Key is not set. Use Command Palette → \"Conversations: Set AI API Key\".": "请先设置 API Key（命令面板 → \"Conversations: Set AI API Key\"）",
-    "Model name is not configured. Set it in Settings (convManager.ai.model).": "请先在设置中配置模型名称 (convManager.ai.model)",
-    "Endpoint is not configured (convManager.ai.endpoint).": "请先配置 Endpoint (convManager.ai.endpoint)",
+    "Model name is not configured. Set it in Settings (sessionTrace.ai.model).": "请先在设置中配置模型名称 (sessionTrace.ai.model)",
+    "Endpoint is not configured (sessionTrace.ai.endpoint).": "请先配置 Endpoint (sessionTrace.ai.endpoint)",
     "API Key is not set.": "API Key 未设置",
     "(No response from AI)": "(AI 未返回内容)",
     "Request timeout (60s)": "请求超时 (60s)",

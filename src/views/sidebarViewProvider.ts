@@ -399,7 +399,7 @@ export class SessionItem extends vscode.TreeItem {
         this.contextValue = session.stale ? 'sessionStale' : isStarred ? 'sessionStarred' : 'session';
 
         this.command = {
-            command: 'convManager.openSession',
+            command: 'sessionTrace.openSession',
             title: 'Open Session',
             arguments: [session],
         };

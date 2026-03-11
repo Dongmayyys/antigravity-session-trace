@@ -5,7 +5,7 @@
  *   - OpenAI: POST {base}/chat/completions with Bearer auth
  *   - Gemini: POST {base}/models/{model}:generateContent with ?key= auth
  *
- * Config is read from VS Code settings (convManager.ai.*).
+ * Config is read from VS Code settings (sessionTrace.ai.*).
  * Summaries are persisted in globalState['summaryCache'].
  */
 
@@ -28,7 +28,7 @@ const SUMMARY_CACHE_KEY = 'summaryCache';
 // ====================== Config Helpers ======================
 
 function getConfig() {
-    const cfg = vscode.workspace.getConfiguration('convManager.ai');
+    const cfg = vscode.workspace.getConfiguration('sessionTrace.ai');
     return {
         endpoint: (cfg.get<string>('endpoint') || '').replace(/\/+$/, ''),
         model: cfg.get<string>('model') || '',
@@ -44,15 +44,15 @@ function getConfig() {
  * so the key never appears in settings.json or globalState.
  */
 export async function getApiKey(secrets: vscode.SecretStorage): Promise<string> {
-    return (await secrets.get('convManager.ai.apiKey')) || '';
+    return (await secrets.get('sessionTrace.ai.apiKey')) || '';
 }
 
 /** Store API key in SecretStorage. */
 export async function setApiKey(secrets: vscode.SecretStorage, key: string): Promise<void> {
     if (key) {
-        await secrets.store('convManager.ai.apiKey', key);
+        await secrets.store('sessionTrace.ai.apiKey', key);
     } else {
-        await secrets.delete('convManager.ai.apiKey');
+        await secrets.delete('sessionTrace.ai.apiKey');
     }
 }
 
@@ -92,9 +92,9 @@ export async function summarize(
     const cfg = getConfig();
     const apiKey = await getApiKey(secrets);
 
-    if (!cfg.endpoint) { throw new Error(vscode.l10n.t('AI Endpoint is not configured. Set it in Settings (convManager.ai.endpoint).')); }
+    if (!cfg.endpoint) { throw new Error(vscode.l10n.t('AI Endpoint is not configured. Set it in Settings (sessionTrace.ai.endpoint).')); }
     if (!apiKey) { throw new Error(vscode.l10n.t('API Key is not set. Use Command Palette → "Conversations: Set AI API Key".')); }
-    if (!cfg.model) { throw new Error(vscode.l10n.t('Model name is not configured. Set it in Settings (convManager.ai.model).')); }
+    if (!cfg.model) { throw new Error(vscode.l10n.t('Model name is not configured. Set it in Settings (sessionTrace.ai.model).')); }
 
     // Build conversation text
     const conversationText = messages
@@ -118,7 +118,7 @@ export async function testConnection(secrets: vscode.SecretStorage): Promise<str
     const cfg = getConfig();
     const apiKey = await getApiKey(secrets);
 
-    if (!cfg.endpoint) { throw new Error(vscode.l10n.t('Endpoint is not configured (convManager.ai.endpoint).')); }
+    if (!cfg.endpoint) { throw new Error(vscode.l10n.t('Endpoint is not configured (sessionTrace.ai.endpoint).')); }
     if (!apiKey) { throw new Error(vscode.l10n.t('API Key is not set.')); }
 
     const base = cfg.endpoint;

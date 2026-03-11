@@ -24,113 +24,113 @@
         "viewsContainers": {
             "activitybar": [
                 {
-                    "id": "antigravity-conv-manager",
+                    "id": "antigravity-session-trace",
                     "title": "%viewsContainers.conversations.title%",
                     "icon": "$(comment-discussion)"
                 }
             ]
         },
         "views": {
-            "antigravity-conv-manager": [
+            "antigravity-session-trace": [
                 {
-                    "id": "convManager.sessions",
+                    "id": "sessionTrace.sessions",
                     "name": "%views.sessions.name%"
                 }
             ]
         },
         "commands": [
             {
-                "command": "convManager.refresh",
+                "command": "sessionTrace.refresh",
                 "title": "%commands.refresh%",
                 "icon": "$(refresh)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.openSession",
+                "command": "sessionTrace.openSession",
                 "title": "%commands.openSession%",
                 "icon": "$(open-preview)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.search",
+                "command": "sessionTrace.search",
                 "title": "%commands.search%",
                 "icon": "$(search)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.sortBy",
+                "command": "sessionTrace.sortBy",
                 "title": "%commands.sortBy%",
                 "icon": "$(list-ordered)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.filterWorkspace",
+                "command": "sessionTrace.filterWorkspace",
                 "title": "%commands.filterWorkspace%",
                 "icon": "$(filter)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.summarize",
+                "command": "sessionTrace.summarize",
                 "title": "%commands.summarize%",
                 "icon": "$(sparkle)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.showStats",
+                "command": "sessionTrace.showStats",
                 "title": "%commands.showStats%",
                 "icon": "$(graph)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.setApiKey",
+                "command": "sessionTrace.setApiKey",
                 "title": "%commands.setApiKey%",
                 "icon": "$(key)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.star",
+                "command": "sessionTrace.star",
                 "title": "%commands.star%",
                 "icon": "$(star-empty)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.unstar",
+                "command": "sessionTrace.unstar",
                 "title": "%commands.unstar%",
                 "icon": "$(star-full)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.showTokenDashboard",
+                "command": "sessionTrace.showTokenDashboard",
                 "title": "%commands.showTokenDashboard%",
                 "icon": "$(graph)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.viewRecent",
+                "command": "sessionTrace.viewRecent",
                 "title": "%commands.viewRecent%",
                 "icon": "$(clock)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.viewSessions",
+                "command": "sessionTrace.viewSessions",
                 "title": "%commands.viewSessions%",
                 "icon": "$(list-unordered)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.copyId",
+                "command": "sessionTrace.copyId",
                 "title": "%commands.copyId%",
                 "icon": "$(clippy)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.revealInExplorer",
+                "command": "sessionTrace.revealInExplorer",
                 "title": "%commands.revealInExplorer%",
                 "icon": "$(folder-opened)",
                 "category": "%category%"
             },
             {
-                "command": "convManager.toggleArchive",
+                "command": "sessionTrace.toggleArchive",
                 "title": "%commands.toggleArchive%",
                 "icon": "$(archive)",
                 "category": "%category%"
@@ -139,70 +139,70 @@
         "menus": {
             "view/title": [
                 {
-                    "command": "convManager.viewRecent",
-                    "when": "view == convManager.sessions && convManager.viewMode != 'recent'",
+                    "command": "sessionTrace.viewRecent",
+                    "when": "view == sessionTrace.sessions && sessionTrace.viewMode != 'recent'",
                     "group": "navigation@0"
                 },
                 {
-                    "command": "convManager.viewSessions",
-                    "when": "view == convManager.sessions && convManager.viewMode == 'recent'",
+                    "command": "sessionTrace.viewSessions",
+                    "when": "view == sessionTrace.sessions && sessionTrace.viewMode == 'recent'",
                     "group": "navigation@0"
                 },
                 {
-                    "command": "convManager.search",
-                    "when": "view == convManager.sessions",
+                    "command": "sessionTrace.search",
+                    "when": "view == sessionTrace.sessions",
                     "group": "navigation@1"
                 },
                 {
-                    "command": "convManager.filterWorkspace",
-                    "when": "view == convManager.sessions",
+                    "command": "sessionTrace.filterWorkspace",
+                    "when": "view == sessionTrace.sessions",
                     "group": "navigation@2"
                 },
                 {
-                    "command": "convManager.sortBy",
-                    "when": "view == convManager.sessions && convManager.viewMode != 'recent'",
+                    "command": "sessionTrace.sortBy",
+                    "when": "view == sessionTrace.sessions && sessionTrace.viewMode != 'recent'",
                     "group": "navigation@3"
                 },
                 {
-                    "command": "convManager.refresh",
-                    "when": "view == convManager.sessions",
+                    "command": "sessionTrace.refresh",
+                    "when": "view == sessionTrace.sessions",
                     "group": "navigation@4"
                 },
                 {
-                    "command": "convManager.showTokenDashboard",
-                    "when": "view == convManager.sessions",
+                    "command": "sessionTrace.showTokenDashboard",
+                    "when": "view == sessionTrace.sessions",
                     "group": "navigation@5"
                 }
             ],
             "view/item/context": [
                 {
-                    "command": "convManager.star",
-                    "when": "view == convManager.sessions && viewItem == session",
+                    "command": "sessionTrace.star",
+                    "when": "view == sessionTrace.sessions && viewItem == session",
                     "group": "inline@1"
                 },
                 {
-                    "command": "convManager.unstar",
-                    "when": "view == convManager.sessions && viewItem == sessionStarred",
+                    "command": "sessionTrace.unstar",
+                    "when": "view == sessionTrace.sessions && viewItem == sessionStarred",
                     "group": "inline@1"
                 },
                 {
-                    "command": "convManager.toggleArchive",
-                    "when": "view == convManager.sessions && viewItem =~ /^session(Starred)?$/",
+                    "command": "sessionTrace.toggleArchive",
+                    "when": "view == sessionTrace.sessions && viewItem =~ /^session(Starred)?$/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "convManager.summarize",
-                    "when": "view == convManager.sessions && viewItem =~ /^session(Starred)?$/",
+                    "command": "sessionTrace.summarize",
+                    "when": "view == sessionTrace.sessions && viewItem =~ /^session(Starred)?$/",
                     "group": "1_actions@0"
                 },
                 {
-                    "command": "convManager.copyId",
-                    "when": "view == convManager.sessions && viewItem =~ /^session/",
+                    "command": "sessionTrace.copyId",
+                    "when": "view == sessionTrace.sessions && viewItem =~ /^session/",
                     "group": "1_actions@1"
                 },
                 {
-                    "command": "convManager.revealInExplorer",
-                    "when": "view == convManager.sessions && viewItem =~ /^session/",
+                    "command": "sessionTrace.revealInExplorer",
+                    "when": "view == sessionTrace.sessions && viewItem =~ /^session/",
                     "group": "1_actions@2"
                 }
             ]
@@ -210,13 +210,13 @@
         "configuration": {
             "title": "%config.title%",
             "properties": {
-                "convManager.ai.endpoint": {
+                "sessionTrace.ai.endpoint": {
                     "order": 1,
                     "type": "string",
                     "default": "",
                     "markdownDescription": "%config.ai.endpoint.markdownDescription%"
                 },
-                "convManager.ai.format": {
+                "sessionTrace.ai.format": {
                     "order": 2,
                     "type": "string",
                     "enum": [
@@ -226,20 +226,20 @@
                     "default": "openai",
                     "description": "%config.ai.format.description%"
                 },
-                "convManager.ai.model": {
+                "sessionTrace.ai.model": {
                     "order": 3,
                     "type": "string",
                     "default": "",
                     "description": "%config.ai.model.description%"
                 },
-                "convManager.ai.prompt": {
+                "sessionTrace.ai.prompt": {
                     "order": 4,
                     "type": "string",
                     "default": "",
                     "markdownDescription": "%config.ai.prompt.markdownDescription%",
                     "editPresentation": "multilineText"
                 },
-                "convManager.ai.autoSummarize": {
+                "sessionTrace.ai.autoSummarize": {
                     "order": 5,
                     "type": "string",
                     "enum": [
@@ -250,25 +250,25 @@
                     "default": "ask",
                     "markdownDescription": "%config.ai.autoSummarize.markdownDescription%"
                 },
-                "convManager.ai.minMessages": {
+                "sessionTrace.ai.minMessages": {
                     "order": 6,
                     "type": "number",
                     "default": 5,
                     "description": "%config.ai.minMessages.description%"
                 },
-                "convManager.ai.cooldownHours": {
+                "sessionTrace.ai.cooldownHours": {
                     "order": 7,
                     "type": "number",
                     "default": 2,
                     "description": "%config.ai.cooldownHours.description%"
                 },
-                "convManager.ai.staleThreshold": {
+                "sessionTrace.ai.staleThreshold": {
                     "order": 8,
                     "type": "number",
                     "default": 5,
                     "description": "%config.ai.staleThreshold.description%"
                 },
-                "convManager.archiveKeywords": {
+                "sessionTrace.archiveKeywords": {
                     "order": 9,
                     "type": "array",
                     "items": {

@@ -131,7 +131,7 @@ export class TokenDashboard {
         }
 
         const panel = vscode.window.createWebviewPanel(
-            'convManager.tokenDashboard',
+            'sessionTrace.tokenDashboard',
             'Token Usage Dashboard',
             vscode.ViewColumn.One,
             { enableScripts: true, retainContextWhenHidden: true },
